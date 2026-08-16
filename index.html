@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>C++ Code Review & Diff Platform</title>
+  <!-- Fast Diff Matching Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/diff-match-patch/20121111/diff_match_patch.js"></script>
   <style>
     /* Dark VSCode Theme Basics */
     :root {
@@ -37,8 +39,28 @@
     .container { flex: 1; padding: 20px; overflow-y: auto; }
     .hidden { display: none !important; }
 
-    /* Auth Bar */
-    .user-info { display: flex; gap: 10px; align-items: center; }
+    /* Login Wall Overlay */
+    #loginOverlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background-color: var(--bg-dark);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .login-card {
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border-color);
+      padding: 30px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+
+    .login-card h2 { margin-top: 0; margin-bottom: 20px; text-align: center; color: #569cd6; }
 
     /* Menu & Lists */
     .section-title { font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-top: 20px; margin-bottom: 10px; color: #569cd6; }
@@ -54,125 +76,177 @@
     .form-group label { font-size: 0.9rem; }
 
     /* Editor Layout */
-    .editor-container { display: flex; flex-direction: column; height: calc(100vh - 80px); }
+    .editor-container { display: flex; flex-direction: column; height: calc(100vh - 50px); }
     .editor-toolbar { background: var(--bg-sidebar); padding: 8px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); }
     .editor-panes { display: flex; flex: 1; overflow: hidden; }
-    .pane { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border-color); overflow: hidden; }
+    .pane { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border-color); overflow: hidden; position: relative; }
     .pane-header { background: #2d2d2d; padding: 5px 10px; font-size: 0.85rem; border-bottom: 1px solid var(--border-color); color: #888; }
     
-    .code-view, textarea.code-input {
+    .code-view {
       flex: 1;
       font-family: 'Consolas', 'Courier New', monospace;
       font-size: 14px;
       line-height: 1.5;
       padding: 10px;
-      white-space: pre;
+      white-space: pre-wrap;
+      word-break: break-all;
       overflow: auto;
       background: var(--bg-editor);
       color: var(--text-main);
-      border: none;
-      outline: none;
       tab-size: 4;
     }
 
-    textarea.code-input { resize: none; }
+    /* Right Editor Sync Overlay Container */
+    .editor-wrapper {
+      position: relative;
+      flex: 1;
+      display: flex;
+    }
 
-    /* Diff Highlightings */
-    .line-deleted { background-color: var(--delete-bg); text-decoration: line-through; display: block; }
-    .text-added { text-decoration: underline; background-color: var(--add-bg); }
+    textarea.code-input, .highlight-layer {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 10px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      tab-size: 4;
+      margin: 0;
+      border: none;
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    .highlight-layer {
+      color: transparent;
+      pointer-events: none;
+      overflow: auto;
+      background: transparent;
+      z-index: 1;
+    }
+
+    textarea.code-input {
+      background: transparent;
+      color: var(--text-main);
+      caret-color: #ffffff;
+      resize: none;
+      z-index: 2;
+    }
+
+    /* Diff Highlighting */
+    .line-deleted { background-color: var(--delete-bg); text-decoration: line-through; color: #f88; }
+    .text-added { text-decoration: underline; background-color: var(--add-bg); color: #8f8; }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1 onclick="showView('menuView')">C++ Reviewer Platform</h1>
-    <div class="user-info">
-      <div id="loggedOutNav">
-        <input type="text" id="usernameInput" placeholder="Username" style="width: 110px;">
-        <input type="password" id="passwordInput" placeholder="Password" style="width: 110px;">
-        <button class="btn" onclick="login()">Login</button>
-      </div>
-      <div id="loggedInNav" class="hidden">
+  <!-- MANDATORY LOGIN OVERLAY -->
+  <div id="loginOverlay">
+    <div class="login-card">
+      <h2>Sign In Required</h2>
+      <form onsubmit="event.preventDefault(); login();">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="usernameInput" placeholder="Enter username" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="passwordInput" placeholder="Enter password" required>
+        </div>
+        <button type="submit" class="btn" style="width: 100%; margin-top: 10px; padding: 10px;">Login</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APPLICATION (BLOCKED UNTIL LOGIN) -->
+  <div id="appContent" class="hidden" style="display: flex; flex-direction: column; height: 100vh;">
+    <header>
+      <h1 onclick="showView('menuView')">C++ Reviewer Platform</h1>
+      <div style="display: flex; gap: 15px; align-items: center;">
         <span>User: <strong id="currentUserSpan" style="color:#569cd6;"></strong></span>
         <button class="btn btn-secondary" onclick="logout()">Logout</button>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <!-- MENU VIEW -->
-  <div id="menuView" class="container">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <h2>Files Dashboard</h2>
-      <button class="btn btn-success" onclick="showView('uploadView')">+ Upload C++ / Code</button>
+    <!-- MENU VIEW -->
+    <div id="menuView" class="container">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Files Dashboard</h2>
+        <button class="btn btn-success" onclick="showView('uploadView')">+ Upload C++ / Code</button>
+      </div>
+      <div id="fileListContainer"></div>
     </div>
-    <div id="fileListContainer"></div>
-  </div>
 
-  <!-- UPLOAD VIEW -->
-  <div id="uploadView" class="container hidden">
-    <h2>Upload C++ File or Raw Text</h2>
-    <div style="max-width: 600px;">
-      <div class="form-group">
-        <label>Code Name:</label>
-        <input type="text" id="uploadName" placeholder="e.g. Binary Search Tree">
+    <!-- UPLOAD VIEW -->
+    <div id="uploadView" class="container hidden">
+      <h2>Upload C++ File or Raw Text</h2>
+      <div style="max-width: 600px;">
+        <div class="form-group">
+          <label>Code Name:</label>
+          <input type="text" id="uploadName" placeholder="e.g. Binary Search Tree">
+        </div>
+        <div class="form-group">
+          <label>Tag:</label>
+          <input type="text" id="uploadTag" placeholder="e.g. Data Structures, Homework 1">
+        </div>
+        <div class="form-group">
+          <label>Select File (.cpp, .h, .txt):</label>
+          <input type="file" id="uploadFileInput" accept=".cpp,.h,.hpp,.txt" onchange="handleFileSelect(event)">
+        </div>
+        <div class="form-group">
+          <label>Or Paste C++ Code Directly:</label>
+          <textarea id="uploadCodeText" style="height: 200px; font-family: monospace;"></textarea>
+        </div>
+        <button class="btn btn-success" onclick="saveNewUpload()">Submit & Upload</button>
+        <button class="btn btn-secondary" onclick="showView('menuView')">Cancel</button>
       </div>
-      <div class="form-group">
-        <label>Tag:</label>
-        <input type="text" id="uploadTag" placeholder="e.g. Data Structures, Homework 1">
-      </div>
-      <div class="form-group">
-        <label>Select File (.cpp, .h, .txt):</label>
-        <input type="file" id="uploadFileInput" accept=".cpp,.h,.hpp,.txt" onchange="handleFileSelect(event)">
-      </div>
-      <div class="form-group">
-        <label>Or Paste C++ Code Directly:</label>
-        <textarea id="uploadCodeText" style="height: 200px; font-family: monospace;"></textarea>
-      </div>
-      <button class="btn btn-success" onclick="saveNewUpload()">Submit & Upload</button>
-      <button class="btn btn-secondary" onclick="showView('menuView')">Cancel</button>
     </div>
-  </div>
 
-  <!-- EDITOR & DIFF VIEW -->
-  <div id="editorView" class="hidden">
-    <div class="editor-container">
-      <div class="editor-toolbar">
-        <div>
-          <button class="btn btn-secondary" onclick="showView('menuView')">&larr; Back to Menu</button>
-          <span id="editorTitle" style="margin-left: 15px; font-weight: bold;"></span>
+    <!-- EDITOR & DIFF VIEW -->
+    <div id="editorView" class="hidden">
+      <div class="editor-container">
+        <div class="editor-toolbar">
+          <div>
+            <button class="btn btn-secondary" onclick="showView('menuView')">&larr; Back to Menu</button>
+            <span id="editorTitle" style="margin-left: 15px; font-weight: bold;"></span>
+          </div>
+          <div>
+            <button class="btn btn-success" onclick="saveEdit()">Save Edits</button>
+            <button id="markDoneBtn" class="btn hidden" style="background:#d7ba7d; color:black;" onclick="toggleMarkDone()">Mark as Done</button>
+            <button id="markReadBtn" class="btn hidden" style="background:#6a9955;" onclick="toggleMarkRead()">Mark as Read</button>
+          </div>
         </div>
-        <div>
-          <button class="btn btn-success" onclick="saveEdit()">Save Edits</button>
-          <button id="markDoneBtn" class="btn hidden" style="background:#d7ba7d; color:black;" onclick="toggleMarkDone()">Mark as Done</button>
-          <button id="markReadBtn" class="btn hidden" style="background:#6a9955;" onclick="toggleMarkRead()">Mark as Read</button>
-        </div>
-      </div>
-      <div class="editor-panes">
-        <!-- Original Code View (Left) -->
-        <div class="pane">
-          <div class="pane-header">Original Code</div>
-          <div id="leftEditor" class="code-view"></div>
-        </div>
-        <!-- Modified Code Editor (Right) -->
-        <div class="pane">
-          <div class="pane-header">Modified Code (Editable)</div>
-          <textarea id="rightEditor" class="code-input" spellcheck="false"></textarea>
+        <div class="editor-panes">
+          <!-- Original Code View (Left) -->
+          <div class="pane">
+            <div class="pane-header">Original Code (Red/Strikethrough = Deleted)</div>
+            <div id="leftEditor" class="code-view"></div>
+          </div>
+          <!-- Modified Code Editor (Right) -->
+          <div class="pane">
+            <div class="pane-header">Modified Code (Underline/Green = Newly Added)</div>
+            <div class="editor-wrapper">
+              <div id="highlightLayer" class="highlight-layer"></div>
+              <textarea id="rightEditor" class="code-input" spellcheck="false" onscroll="syncScroll()"></textarea>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // System Data state in localStorage
+    const dmp = new diff_match_patch();
     let files = JSON.parse(localStorage.getItem('cpp_files') || '[]');
-    let currentUser = null; // { username, role }
+    let currentUser = null;
     let activeFileId = null;
 
-    // Accounts Configuration
     const ACCOUNTS = {
-      'qwertyPi': { pass: '123456', canMark: true },
-      'WongChun1234': { pass: '123456', canMark: true },
-      'firewater': { pass: '123456', canRead: true }
+      'qwertyPi': { pass: 'password123456', canMark: true },
+      'WongChun1234': { pass: 'password123456', canMark: true },
+      'firewater': { pass: 'password123456', canRead: true }
     };
 
     // --- Authentication ---
@@ -183,9 +257,9 @@
       if (ACCOUNTS[u] && ACCOUNTS[u].pass === p) {
         currentUser = { username: u, ...ACCOUNTS[u] };
         document.getElementById('currentUserSpan').innerText = u;
-        document.getElementById('loggedOutNav').classList.add('hidden');
-        document.getElementById('loggedInNav').classList.remove('hidden');
-        renderMenuList();
+        document.getElementById('loginOverlay').classList.add('hidden');
+        document.getElementById('appContent').classList.remove('hidden');
+        showView('menuView');
       } else {
         alert('Invalid credentials!');
       }
@@ -193,11 +267,10 @@
 
     function logout() {
       currentUser = null;
-      document.getElementById('loggedOutNav').classList.remove('hidden');
-      document.getElementById('loggedInNav').classList.add('hidden');
       document.getElementById('usernameInput').value = '';
       document.getElementById('passwordInput').value = '';
-      renderMenuList();
+      document.getElementById('appContent').classList.add('hidden');
+      document.getElementById('loginOverlay').classList.remove('hidden');
     }
 
     // --- Navigation ---
@@ -247,7 +320,6 @@
       files.push(newFile);
       saveStorage();
       
-      // Reset Form
       document.getElementById('uploadName').value = '';
       document.getElementById('uploadTag').value = '';
       document.getElementById('uploadCodeText').value = '';
@@ -260,7 +332,7 @@
       localStorage.setItem('cpp_files', JSON.stringify(files));
     }
 
-    // --- Menu Rendering (Categorized by account permissions) ---
+    // --- Menu Rendering ---
     function renderMenuList() {
       const container = document.getElementById('fileListContainer');
       container.innerHTML = '';
@@ -273,7 +345,6 @@
       const isFirewater = currentUser && currentUser.username === 'firewater';
 
       if (isFirewater) {
-        // Special categorization for 'firewater'
         const markedNotRead = files.filter(f => f.markedDone && !f.readByFirewater);
         const notMarked = files.filter(f => !f.markedDone);
         const readFiles = files.filter(f => f.readByFirewater);
@@ -282,7 +353,6 @@
         renderSection(container, '2. Not Marked as Done', notMarked);
         renderSection(container, '3. Read Files', readFiles);
       } else {
-        // Default View (Regular users, qwertyPi, WongChun1234)
         const notMarked = files.filter(f => !f.markedDone);
         const markedDone = files.filter(f => f.markedDone);
 
@@ -319,7 +389,7 @@
       });
     }
 
-    // --- Editor & Diff Logic ---
+    // --- Precise Character-Level Diff Engine ---
     function openEditor(fileId) {
       activeFileId = fileId;
       const file = files.find(f => f.id === fileId);
@@ -330,7 +400,6 @@
       const rightEdit = document.getElementById('rightEditor');
       rightEdit.value = file.modifiedCode;
 
-      // Update Action Buttons
       const markDoneBtn = document.getElementById('markDoneBtn');
       const markReadBtn = document.getElementById('markReadBtn');
 
@@ -356,39 +425,43 @@
       const file = files.find(f => f.id === activeFileId);
       if (!file) return;
 
-      const origLines = file.originalCode.split('\n');
-      const modLines = document.getElementById('rightEditor').value.split('\n');
+      const originalText = file.originalCode;
+      const modifiedText = document.getElementById('rightEditor').value;
 
-      const leftContainer = document.getElementById('leftEditor');
-      leftContainer.innerHTML = '';
+      // Compute character/word diffs using diff-match-patch
+      const diffs = dmp.diff_main(originalText, modifiedText);
+      dmp.diff_cleanupSemantic(diffs);
 
-      // Simple line-by-line diff comparison
-      const maxLines = Math.max(origLines.length, modLines.length);
-      for (let i = 0; i < maxLines; i++) {
-        const orig = origLines[i];
-        const mod = modLines[i];
+      let leftHTML = '';
+      let rightHTML = '';
 
-        const lineEl = document.createElement('div');
+      diffs.forEach(diff => {
+        const [op, text] = diff;
+        const safeText = escapeHtml(text);
 
-        if (orig !== undefined && mod !== undefined) {
-          if (orig !== mod) {
-            // Line modified
-            lineEl.className = 'line-deleted';
-            lineEl.textContent = orig;
-          } else {
-            // Unchanged line
-            lineEl.textContent = orig;
-          }
-        } else if (orig !== undefined) {
-          // Line deleted from original
-          lineEl.className = 'line-deleted';
-          lineEl.textContent = orig;
-        } else {
-          // Empty placeholder on left when new line added on right
-          lineEl.innerHTML = '&nbsp;';
+        if (op === 0) {
+          // Unchanged code
+          leftHTML += safeText;
+          rightHTML += safeText;
+        } else if (op === -1) {
+          // Deleted from original
+          leftHTML += `<span class="line-deleted">${safeText}</span>`;
+        } else if (op === 1) {
+          // Newly inserted on right
+          rightHTML += `<span class="text-added">${safeText}</span>`;
         }
-        leftContainer.appendChild(lineEl);
-      }
+      });
+
+      document.getElementById('leftEditor').innerHTML = leftHTML;
+      document.getElementById('highlightLayer').innerHTML = rightHTML + '\n';
+      syncScroll();
+    }
+
+    function syncScroll() {
+      const textarea = document.getElementById('rightEditor');
+      const highlightLayer = document.getElementById('highlightLayer');
+      highlightLayer.scrollTop = textarea.scrollTop;
+      highlightLayer.scrollLeft = textarea.scrollLeft;
     }
 
     function saveEdit() {
@@ -397,7 +470,7 @@
 
       file.modifiedCode = document.getElementById('rightEditor').value;
       saveStorage();
-      alert('Edits saved successfully! (Original version preserved)');
+      alert('Edits saved successfully!');
       updateDiff();
     }
 
@@ -419,7 +492,7 @@
       openEditor(activeFileId);
     }
 
-    // --- Smart Textarea Extensions (Auto-brackets & Tab shifting) ---
+    // --- Textarea Editing Enhancements ---
     const textarea = document.getElementById('rightEditor');
 
     textarea.addEventListener('input', () => {
@@ -431,7 +504,7 @@
       const start = this.selectionStart;
       const end = this.selectionEnd;
 
-      // 1. Tab Key Handling (4 Spaces & Column shift maintenance)
+      // Tab handling (4 Spaces)
       if (e.key === 'Tab') {
         e.preventDefault();
         this.value = this.value.substring(0, start) + "    " + this.value.substring(end);
@@ -440,7 +513,7 @@
         return;
       }
 
-      // 2. Auto Bracket Completion
+      // Auto-brackets
       if (pairs[e.key]) {
         e.preventDefault();
         const closePair = pairs[e.key];
@@ -453,14 +526,13 @@
         return;
       }
 
-      // 3. Keep Indentation / Column Shift on Enter Key
+      // Maintain Indentation on Enter
       if (e.key === 'Enter') {
         e.preventDefault();
         const currentLine = this.value.substring(0, start).split('\n').pop();
         const indentMatch = currentLine.match(/^(\s*)/);
         let indent = indentMatch ? indentMatch[0] : '';
         
-        // Extra indent if line ends with opening bracket
         if (currentLine.trim().endsWith('{')) {
           indent += '    ';
         }
@@ -475,9 +547,6 @@
     function escapeHtml(text) {
       return text.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
     }
-
-    // Initial render
-    renderMenuList();
   </script>
 </body>
 </html>
