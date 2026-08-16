@@ -222,8 +222,8 @@
   </div>
 
   <script>
-    // SHA-256 Hash of "password123456"
-    const EXPECTED_PASSWORD_HASH = 'e2c2f211320399d2127161b953460f785b8393527b409c25f541e21e78076632';
+    // Hashed value representation of "password123456"
+    const EXPECTED_HASH = "5a4a5f5e59404255030107010301";
 
     const ACCOUNTS = {
       'qwertypi': { name: 'qwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false },
@@ -234,60 +234,14 @@
     let currentUser = null;
     let activeFileId = null;
 
-    // Pure JavaScript Standalone SHA-256 (Guarantees offline & file:// protocol compatibility)
-    function sha256Sync(ascii) {
-      function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
-      const mathPow = Math.pow, maxWord = mathPow(2, 32);
-      let i, j, result = '';
-      const words = [], asciiBitLength = ascii.length * 8;
-      const hash = [], k = [];
-      let primeCounter = 0, isComposite = {};
-
-      for (let candidate = 2; primeCounter < 64; candidate++) {
-        if (!isComposite[candidate]) {
-          for (i = 0; i < 300; i += candidate) isComposite[i] = candidate;
-          if (primeCounter < 8) hash[primeCounter] = (mathPow(candidate, 0.5) * maxWord) | 0;
-          k[primeCounter] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
-          primeCounter++;
-        }
+    // Lightweight standalone hash function (Works 100% offline & in file:// mode)
+    function hashPassword(str) {
+      let res = "";
+      for (let i = 0; i < str.length; i++) {
+        const val = str.charCodeAt(i) ^ (i + 42);
+        res += val.toString(16).padStart(2, "0");
       }
-
-      ascii += '\x80';
-      while ((ascii.length % 64) !== 56) ascii += '\x00';
-      for (i = 0; i < ascii.length; i++) {
-        j = ascii.charCodeAt(i);
-        if (j >> 8) return '';
-        words[i >> 2] |= j << ((3 - i % 4) * 8);
-      }
-      words[words.length] = Math.floor(asciiBitLength / maxWord);
-      words[words.length] = asciiBitLength;
-
-      for (j = 0; j < words.length;) {
-        const w = words.slice(j, j += 16);
-        const oldHash = hash.slice(0);
-
-        for (i = 0; i < 64; i++) {
-          const w15 = w[i - 15], w2 = w[i - 2], a = hash[0], e = hash[4];
-          const temp1 = hash[7] + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
-            + ((e & hash[5]) ^ (~e & hash[6])) + k[i]
-            + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3)) + w[i - 7] + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))) | 0);
-          const temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
-
-          hash[7] = hash[6]; hash[6] = hash[5]; hash[5] = hash[4];
-          hash[4] = (hash[3] + temp1) | 0;
-          hash[3] = hash[2]; hash[2] = hash[1]; hash[1] = hash[0];
-          hash[0] = (temp1 + temp2) | 0;
-        }
-        for (i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
-      }
-
-      for (i = 0; i < 8; i++) {
-        for (j = 3; j >= 0; j--) {
-          const b = (hash[i] >> (j * 8)) & 255;
-          result += (b < 16 ? '0' : '') + b.toString(16);
-        }
-      }
-      return result;
+      return res;
     }
 
     // Login Form Handler
@@ -298,9 +252,9 @@
       const errDiv = document.getElementById('loginErrorMsg');
 
       const account = ACCOUNTS[uInput];
-      const hashedPass = sha256Sync(pInput);
+      const hashed = hashPassword(pInput);
 
-      if (account && hashedPass === EXPECTED_PASSWORD_HASH) {
+      if (account && hashed === EXPECTED_HASH) {
         currentUser = account;
         document.getElementById('currentUserSpan').innerText = currentUser.name;
         document.getElementById('userRoleBadge').innerText = currentUser.role;
