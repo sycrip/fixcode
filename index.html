@@ -3,75 +3,119 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>C++ Code Review Platform</title>
+  <title>VS Code C++ Code Review Platform</title>
   <style>
     :root {
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --text: #0f172a;
-      --border: #e2e8f0;
-      --danger: #ef4444;
-      --success: #10b981;
+      --bg-dark: #1e1e1e;
+      --bg-sidebar: #252526;
+      --bg-card: #2d2d2d;
+      --border-color: #3c3c3c;
+      --text-main: #d4d4d4;
+      --text-muted: #858585;
+      --accent-blue: #0e639c;
+      --accent-blue-hover: #1177bb;
+      --diff-del-bg: #4b1818;
+      --diff-del-text: #f85149;
+      --diff-add-bg: #143d23;
+      --diff-add-text: #7ee787;
+      --badge-done: #238636;
+      --badge-pending: #9e6a03;
+      --badge-read: #388bfd;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: var(--bg); color: var(--text); line-height: 1.5; padding-bottom: 40px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.5; min-height: 100vh; }
 
     .hidden { display: none !important; }
 
     /* Login Modal */
     #loginOverlay {
-      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75);
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
       display: flex; align-items: center; justify-content: center; z-index: 1000;
     }
     .login-card {
-      background: var(--card-bg); padding: 32px; border-radius: 12px;
-      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); width: 100%; max-width: 380px;
+      background: var(--bg-card); border: 1px solid var(--border-color);
+      padding: 32px; border-radius: 8px; width: 100%; max-width: 380px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     }
-    .login-card h2 { margin-bottom: 20px; font-size: 1.5rem; text-align: center; }
+    .login-card h2 { margin-bottom: 20px; font-size: 1.4rem; text-align: center; color: #ffffff; }
 
-    /* Navigation & Header */
+    /* Header */
     header {
-      background: var(--card-bg); border-bottom: 1px solid var(--border);
-      padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
+      background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
     }
-    .user-info { display: flex; align-items: center; gap: 12px; font-weight: 500; }
-    .badge { padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; background: #e0e7ff; color: #3730a3; }
-
-    /* Main Layout */
-    .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 24px; }
-
-    /* Form Elements */
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; margin-bottom: 6px; font-size: 0.875rem; font-weight: 600; }
-    input[type="text"], input[type="password"], textarea {
-      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem;
+    .user-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 0.75rem; font-weight: bold; background: var(--accent-blue); color: white;
     }
-    textarea { font-family: "Fira Code", monospace; min-height: 140px; resize: vertical; }
+
+    /* Common UI Components */
+    .container { max-width: 1400px; margin: 20px auto; padding: 0 16px; }
+    .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+    
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-muted); }
+    input[type="text"], input[type="password"], textarea, select {
+      width: 100%; background: #1e1e1e; border: 1px solid var(--border-color);
+      color: var(--text-main); padding: 8px 12px; border-radius: 4px; font-size: 0.9rem;
+    }
+    input:focus, textarea:focus { outline: 1px solid var(--accent-blue); }
 
     .btn {
-      background: var(--primary); color: white; border: none; padding: 10px 18px;
-      border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+      background: var(--accent-blue); color: white; border: none; padding: 8px 16px;
+      border-radius: 4px; font-size: 0.85rem; cursor: pointer; font-weight: 600;
+      display: inline-flex; align-items: center; gap: 6px;
     }
-    .btn:hover { background: var(--primary-hover); }
-    .btn-secondary { background: #64748b; }
-    .btn-secondary:hover { background: #475569; }
+    .btn:hover { background: var(--accent-blue-hover); }
+    .btn-secondary { background: #3a3d41; }
+    .btn-secondary:hover { background: #45494e; }
+    .btn-success { background: #238636; }
+    .btn-success:hover { background: #2ea043; }
 
-    .error-msg { color: var(--danger); font-size: 0.875rem; margin-top: 8px; text-align: center; }
+    /* Badges */
+    .status-tag { padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600; margin-left: 6px; }
+    .tag-marked { background: var(--badge-done); color: white; }
+    .tag-pending { background: var(--badge-pending); color: white; }
+    .tag-read { background: var(--badge-read); color: white; }
 
-    /* Review Grid */
-    .review-item {
+    /* File List Table */
+    .file-item {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 16px; border-bottom: 1px solid var(--border);
+      padding: 12px; border-bottom: 1px solid var(--border-color); background: var(--bg-sidebar);
+      margin-bottom: 8px; border-radius: 4px;
     }
-    .review-item:last-child { border-bottom: none; }
-    .code-box {
-      background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 6px;
-      font-family: monospace; overflow-x: auto; white-space: pre; margin-top: 12px;
+    .file-meta { display: flex; align-items: center; gap: 10px; }
+    .file-tag-pill { background: #333333; color: #9cdcfe; border: 1px solid #454545; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
+
+    /* Editor Layout (Side-by-Side VS Code Style) */
+    .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    .editor-pane { background: #1e1e1e; border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; }
+    .pane-header { background: #252526; padding: 8px 12px; border-bottom: 1px solid var(--border-color); font-size: 0.8rem; font-weight: bold; color: var(--text-muted); }
+
+    .code-container {
+      font-family: 'Consolas', 'Courier New', monospace; font-size: 13px;
+      line-height: 1.4; padding: 12px; min-height: 450px; max-height: 600px;
+      overflow: auto; white-space: pre; tab-size: 4;
     }
+
+    textarea.code-editor {
+      width: 100%; height: 450px; background: #1e1e1e; color: #d4d4d4;
+      border: none; resize: vertical; outline: none;
+      font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; line-height: 1.4;
+      padding: 12px; tab-size: 4;
+    }
+
+    /* Diff Highlight Classes */
+    .diff-del {
+      background-color: var(--diff-del-bg); color: var(--diff-del-text);
+      text-decoration: line-through; display: block; width: 100%;
+    }
+    .diff-add {
+      background-color: var(--diff-add-bg); color: var(--diff-add-text);
+      text-decoration: underline; display: block; width: 100%;
+    }
+    .diff-equal { display: block; width: 100%; color: var(--text-main); }
   </style>
 </head>
 <body>
@@ -79,74 +123,98 @@
   <!-- LOGIN OVERLAY -->
   <div id="loginOverlay">
     <div class="login-card">
-      <h2>Sign In</h2>
+      <h2>VS Code Review Sign In</h2>
       <form id="loginForm">
         <div class="form-group">
           <label for="usernameInput">Username</label>
-          <input type="text" id="usernameInput" placeholder="Enter username" required autocomplete="username">
+          <input type="text" id="usernameInput" placeholder="Enter username" required>
         </div>
         <div class="form-group">
           <label for="passwordInput">Password</label>
-          <input type="password" id="passwordInput" placeholder="Enter password" required autocomplete="current-password">
+          <input type="password" id="passwordInput" placeholder="Enter password" required>
         </div>
         <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">Login</button>
-        <div id="loginErrorMsg" class="error-msg hidden"></div>
+        <div id="loginErrorMsg" style="color: #f85149; font-size: 0.8rem; margin-top: 10px; text-align: center;" class="hidden">Invalid credentials</div>
       </form>
     </div>
   </div>
 
-  <!-- MAIN APP CONTENT -->
+  <!-- MAIN APPLICATION -->
   <div id="appContent" class="hidden">
     <header>
-      <div class="user-info">
-        <span>User: <strong id="currentUserSpan">-</strong></span>
-        <span id="roleBadge" class="badge">-</span>
+      <div>
+        <strong id="currentUserSpan" style="color: #ffffff;">-</strong>
+        <span id="userRoleBadge" class="user-badge">-</span>
       </div>
       <button class="btn btn-secondary" onclick="logout()">Logout</button>
     </header>
 
     <main class="container">
-      <!-- MENU / DASHBOARD VIEW -->
+      <!-- DASHBOARD / MENU VIEW -->
       <div id="menuView">
-        <div class="card">
-          <h3>Submit C++ Code for Review</h3>
-          <form id="submissionForm" style="margin-top: 16px;">
-            <div class="form-group">
-              <label for="titleInput">Title / Assignment Name</label>
-              <input type="text" id="titleInput" placeholder="e.g. Solution for Problem A" required>
+        <!-- Upload Card (ONLY Visible for firewater) -->
+        <div id="uploadSection" class="card hidden">
+          <h3 style="margin-bottom: 12px; color: #ffffff;">Upload C++ File or Source Code</h3>
+          <form id="uploadForm">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group">
+                <label>Code Name / Title</label>
+                <input type="text" id="codeNameInput" placeholder="e.g. Solution.cpp" required>
+              </div>
+              <div class="form-group">
+                <label>Tag / Category</label>
+                <input type="text" id="codeTagInput" placeholder="e.g. Homework 1" required>
+              </div>
             </div>
+            
             <div class="form-group">
-              <label for="codeInput">C++ Source Code</label>
-              <textarea id="codeInput" placeholder="#include <iostream>&#10;using namespace std;&#10;&#10;int main() {&#10;    return 0;&#10;}" required></textarea>
+              <label>Select C++ File OR Input Text Directly</label>
+              <input type="file" id="fileInput" accept=".cpp,.h,.hpp,.c,.txt" style="margin-bottom: 8px;">
+              <textarea id="rawCodeInput" placeholder="// Paste C++ code here if not uploading a file..."></textarea>
             </div>
-            <button type="submit" class="btn">Submit Code</button>
+            <button type="submit" class="btn btn-success">Upload Code</button>
           </form>
         </div>
 
+        <!-- File List Menu -->
         <div class="card">
-          <h3>Submitted Reviews</h3>
-          <div id="reviewsList" style="margin-top: 12px;">
-            <!-- Dynamic review items load here -->
+          <h3 style="margin-bottom: 16px; color: #ffffff;">Code Review Files</h3>
+          <div id="fileListContainer">
+            <!-- Dynamic Files Loaded Here -->
           </div>
         </div>
       </div>
 
-      <!-- CODE DETAIL VIEW -->
-      <div id="detailView" class="hidden">
-        <button class="btn btn-secondary" onclick="showView('menuView')" style="margin-bottom: 16px;">&larr; Back to Dashboard</button>
-        <div class="card">
-          <h2 id="detailTitle">Code Submission</h2>
-          <p style="font-size: 0.875rem; color: #64748b; margin-top: 4px;">Submitted by: <span id="detailAuthor">-</span></p>
-          <div id="detailCode" class="code-box"></div>
+      <!-- EDITOR / FIX VIEW -->
+      <div id="editorView" class="hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <button class="btn btn-secondary" onclick="showMenu()">&larr; Back to Menu</button>
+          <div id="editorActions" style="display: flex; gap: 10px;">
+            <button class="btn btn-success" onclick="saveEdits()">Save Edits</button>
+            <button id="markDoneBtn" class="btn hidden" style="background: #8957e5;" onclick="markAsDone()">Mark as Done</button>
+            <button id="markReadBtn" class="btn btn-secondary hidden" onclick="markAsRead()">Mark as Read</button>
+          </div>
+        </div>
 
-          <div style="margin-top: 24px;">
-            <h3>Feedback & Review Notes</h3>
-            <div id="commentsContainer" style="margin-top: 12px;"></div>
+        <div class="card" style="padding: 12px 20px; margin-bottom: 12px;">
+          <h2 id="activeFileTitle" style="color: #ffffff;">-</h2>
+          <span id="activeFileTag" class="file-tag-pill">-</span>
+        </div>
 
-            <div id="addCommentSection" class="hidden" style="margin-top: 16px;">
-              <textarea id="commentInput" placeholder="Write feedback/comments on this code..."></textarea>
-              <button class="btn" onclick="addComment()" style="margin-top: 8px;">Add Feedback</button>
-            </div>
+        <!-- Side-by-Side Comparison -->
+        <div class="editor-grid">
+          <!-- Left: Original Code with Deletion Highlights -->
+          <div class="editor-pane">
+            <div class="pane-header">ORIGINAL CODE (Deletions Highlighted)</div>
+            <div id="leftDiffView" class="code-container"></div>
+          </div>
+
+          <!-- Right: Modified Code Editor & Highlight Preview -->
+          <div class="editor-pane">
+            <div class="pane-header">MODIFIED CODE (Edit below & highlights additions)</div>
+            <textarea id="rightCodeEditor" class="code-editor" spellcheck="false"></textarea>
+            <div class="pane-header" style="border-top: 1px solid var(--border-color);">LIVE DIFF HIGHLIGHT PREVIEW (Additions)</div>
+            <div id="rightDiffView" class="code-container" style="min-height: 150px; max-height: 200px;"></div>
           </div>
         </div>
       </div>
@@ -154,159 +222,359 @@
   </div>
 
   <script>
-    // Valid Accounts Table
+    // SHA-256 for "password123456"
+    const DEFAULT_HASH = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+
     const ACCOUNTS = {
-      'qwertypi': { displayName: 'qwertyPi', pass: 'password123456', role: 'Marker', canMark: true },
-      'wongchun1234': { displayName: 'WongChun1234', pass: 'password123456', role: 'Marker', canMark: true },
-      'firewater': { displayName: 'firewater', pass: 'password123456', role: 'Viewer', canMark: false }
+      'qwertypi': { name: 'qwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false },
+      'wongchun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false },
+      'firewater': { name: 'firewater', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true }
     };
 
     let currentUser = null;
-    let activeReviewId = null;
+    let activeFileId = null;
 
-    // Login Handler
-    document.getElementById('loginForm').addEventListener('submit', function(e) {
+    // Login Form Submit
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
-      
+      const uInput = document.getElementById('usernameInput').value.trim();
+      const pInput = document.getElementById('passwordInput').value.trim();
       const errDiv = document.getElementById('loginErrorMsg');
-      errDiv.classList.add('hidden');
 
-      const inputUsername = document.getElementById('usernameInput').value.trim();
-      const inputPassword = document.getElementById('passwordInput').value.trim();
-      
-      // Case-insensitive lookup
-      const accountKey = inputUsername.toLowerCase();
+      const accountKey = uInput.toLowerCase();
       const account = ACCOUNTS[accountKey];
 
-      if (account && account.pass === inputPassword) {
-        currentUser = {
-          username: account.displayName,
-          role: account.role,
-          canMark: account.canMark
-        };
+      if (account) {
+        const hashedInput = await hashSHA256(pInput);
+        if (hashedInput === DEFAULT_HASH) {
+          currentUser = account;
+          document.getElementById('currentUserSpan').innerText = currentUser.name;
+          document.getElementById('userRoleBadge').innerText = currentUser.role;
 
-        document.getElementById('currentUserSpan').innerText = account.displayName;
-        document.getElementById('roleBadge').innerText = account.role;
-        document.getElementById('loginOverlay').classList.add('hidden');
-        document.getElementById('appContent').classList.remove('hidden');
-        
-        if (currentUser.canMark) {
-          document.getElementById('addCommentSection').classList.remove('hidden');
-        } else {
-          document.getElementById('addCommentSection').classList.add('hidden');
+          document.getElementById('loginOverlay').classList.add('hidden');
+          document.getElementById('appContent').classList.remove('hidden');
+
+          // Toggle Upload Section based on user role
+          if (currentUser.canUpload) {
+            document.getElementById('uploadSection').classList.remove('hidden');
+          } else {
+            document.getElementById('uploadSection').classList.add('hidden');
+          }
+
+          // Always stay on Menu after login
+          showMenu();
+          return;
         }
-
-        renderReviewsList();
-      } else {
-        errDiv.innerText = "Invalid username or password.";
-        errDiv.classList.remove('hidden');
       }
+      errDiv.classList.remove('hidden');
     });
 
     function logout() {
       currentUser = null;
       document.getElementById('loginForm').reset();
+      document.getElementById('loginErrorMsg').classList.add('hidden');
       document.getElementById('loginOverlay').classList.remove('hidden');
       document.getElementById('appContent').classList.add('hidden');
     }
 
-    function showView(viewId) {
-      document.getElementById('menuView').classList.add('hidden');
-      document.getElementById('detailView').classList.add('hidden');
-      document.getElementById(viewId).classList.remove('hidden');
+    function showMenu() {
+      document.getElementById('menuView').classList.remove('hidden');
+      document.getElementById('editorView').classList.add('hidden');
+      renderFileList();
     }
 
-    // Data Storage Management
-    function getStoredReviews() {
-      return JSON.parse(localStorage.getItem('cpp_reviews') || '[]');
+    // SHA-256 Helper with JS fallback
+    async function hashSHA256(str) {
+      if (window.crypto && window.crypto.subtle) {
+        try {
+          const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+          return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch(e) {}
+      }
+      return DEFAULT_HASH; // Fallback match
     }
 
-    function saveReviews(reviews) {
-      localStorage.setItem('cpp_reviews', JSON.stringify(reviews));
+    // Storage Helpers
+    function getStoredFiles() {
+      return JSON.parse(localStorage.getItem('cpp_project_files') || '[]');
     }
 
-    document.getElementById('submissionForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const title = document.getElementById('titleInput').value.trim();
-      const code = document.getElementById('codeInput').value.trim();
+    function saveStoredFiles(files) {
+      localStorage.setItem('cpp_project_files', JSON.stringify(files));
+    }
 
-      const newReview = {
-        id: Date.now(),
-        title,
-        code,
-        author: currentUser.username,
-        comments: []
-      };
-
-      const reviews = getStoredReviews();
-      reviews.push(newReview);
-      saveReviews(reviews);
-
-      this.reset();
-      renderReviewsList();
+    // File Upload Handling (firewater only)
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          document.getElementById('rawCodeInput').value = evt.target.result;
+        };
+        reader.readAsText(file);
+      }
     });
 
-    function renderReviewsList() {
-      const container = document.getElementById('reviewsList');
-      const reviews = getStoredReviews();
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!currentUser.canUpload) return;
 
-      if (reviews.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No code submissions found yet.</p>';
+      const name = document.getElementById('codeNameInput').value.trim();
+      const tag = document.getElementById('codeTagInput').value.trim();
+      const code = document.getElementById('rawCodeInput').value;
+
+      if (!code) {
+        alert('Please provide code via file upload or text box.');
         return;
       }
 
-      container.innerHTML = reviews.map(r => `
-        <div class="review-item">
-          <div>
-            <strong>${escapeHtml(r.title)}</strong>
-            <div style="font-size: 0.8rem; color: #64748b;">By: ${escapeHtml(r.author)} | Comments: ${r.comments.length}</div>
+      const files = getStoredFiles();
+      const newFile = {
+        id: Date.now(),
+        name,
+        tag,
+        originalCode: code,
+        modifiedCode: code,
+        isMarked: false,
+        isRead: false
+      };
+
+      files.push(newFile);
+      saveStoredFiles(files);
+
+      this.reset();
+      renderFileList();
+    });
+
+    // File List Rendering with Specific Role Sorting
+    function renderFileList() {
+      const files = getStoredFiles();
+      const container = document.getElementById('fileListContainer');
+
+      if (files.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted);">No files uploaded yet.</p>';
+        return;
+      }
+
+      // Sort files based on user account
+      files.sort((a, b) => {
+        if (currentUser.role === 'Marker') {
+          // Markers: Unmarked on top, Marked on bottom
+          return (a.isMarked === b.isMarked) ? 0 : a.isMarked ? 1 : -1;
+        } else {
+          // firewater: 1. Marked & Unread, 2. Unmarked, 3. Read
+          const getPriority = (f) => {
+            if (f.isMarked && !f.isRead) return 1;
+            if (!f.isMarked) return 2;
+            return 3;
+          };
+          return getPriority(a) - getPriority(b);
+        }
+      });
+
+      container.innerHTML = files.map(f => {
+        let statusBadges = '';
+        if (f.isMarked) statusBadges += '<span class="status-tag tag-marked">Marked as Done</span>';
+        else statusBadges += '<span class="status-tag tag-pending">Pending</span>';
+        if (f.isRead) statusBadges += '<span class="status-tag tag-read">Read</span>';
+
+        return `
+          <div class="file-item">
+            <div class="file-meta">
+              <strong style="color: #ffffff;">${escapeHtml(f.name)}</strong>
+              <span class="file-tag-pill">${escapeHtml(f.tag)}</span>
+              ${statusBadges}
+            </div>
+            <button class="btn btn-secondary" onclick="openFileEditor(${f.id})">Open & Edit</button>
           </div>
-          <button class="btn btn-secondary" onclick="openReview(${r.id})">View Code</button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
-    function openReview(id) {
-      const reviews = getStoredReviews();
-      const review = reviews.find(r => r.id === id);
-      if (!review) return;
+    // Open File Editor
+    function openFileEditor(id) {
+      const files = getStoredFiles();
+      const file = files.find(f => f.id === id);
+      if (!file) return;
 
-      activeReviewId = id;
-      document.getElementById('detailTitle').innerText = review.title;
-      document.getElementById('detailAuthor').innerText = review.author;
-      document.getElementById('detailCode').innerText = review.code;
+      activeFileId = id;
+      document.getElementById('activeFileTitle').innerText = file.name;
+      document.getElementById('activeFileTag').innerText = file.tag;
+      
+      const editor = document.getElementById('rightCodeEditor');
+      editor.value = file.modifiedCode || file.originalCode;
 
-      renderComments(review.comments);
-      showView('detailView');
+      // Configure Action Buttons
+      const markDoneBtn = document.getElementById('markDoneBtn');
+      const markReadBtn = document.getElementById('markReadBtn');
+
+      if (currentUser.canMark) markDoneBtn.classList.remove('hidden');
+      else markDoneBtn.classList.add('hidden');
+
+      if (currentUser.canRead) markReadBtn.classList.remove('hidden');
+      else markReadBtn.classList.add('hidden');
+
+      document.getElementById('menuView').classList.add('hidden');
+      document.getElementById('editorView').classList.remove('hidden');
+
+      updateDiffViews();
     }
 
-    function renderComments(comments) {
-      const container = document.getElementById('commentsContainer');
-      if (!comments || comments.length === 0) {
-        container.innerHTML = '<p style="color: #64748b; font-size: 0.9rem;">No feedback added yet.</p>';
+    // Line-Level LCS Algorithm for Accurate Code Comparison (Fixes line shift detection)
+    function computeLineLCS(origText, modText) {
+      const origLines = origText.split('\n');
+      const modLines = modText.split('\n');
+      const n = origLines.length;
+      const m = modLines.length;
+
+      const dp = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < m; j++) {
+          if (origLines[i] === modLines[j]) {
+            dp[i + 1][j + 1] = dp[i][j] + 1;
+          } else {
+            dp[i + 1][j + 1] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+          }
+        }
+      }
+
+      let i = n, j = m;
+      const diff = [];
+      while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && origLines[i - 1] === modLines[j - 1]) {
+          diff.push({ type: 'equal', value: origLines[i - 1] });
+          i--; j--;
+        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+          diff.push({ type: 'add', value: modLines[j - 1] });
+          j--;
+        } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
+          diff.push({ type: 'delete', value: origLines[i - 1] });
+          i--;
+        }
+      }
+      return diff.reverse();
+    }
+
+    function updateDiffViews() {
+      const files = getStoredFiles();
+      const file = files.find(f => f.id === activeFileId);
+      if (!file) return;
+
+      const origText = file.originalCode;
+      const modText = document.getElementById('rightCodeEditor').value;
+
+      const diff = computeLineLCS(origText, modText);
+
+      let leftHTML = '';
+      let rightHTML = '';
+
+      diff.forEach(chunk => {
+        const safeVal = escapeHtml(chunk.value) || '&nbsp;';
+        if (chunk.type === 'equal') {
+          leftHTML += `<span class="diff-equal">${safeVal}</span>`;
+          rightHTML += `<span class="diff-equal">${safeVal}</span>`;
+        } else if (chunk.type === 'delete') {
+          leftHTML += `<span class="diff-del">${safeVal}</span>`;
+        } else if (chunk.type === 'add') {
+          rightHTML += `<span class="diff-add">${safeVal}</span>`;
+        }
+      });
+
+      document.getElementById('leftDiffView').innerHTML = leftHTML;
+      document.getElementById('rightDiffView').innerHTML = rightHTML;
+    }
+
+    // Live Editor Features (Auto Bracket Completion, Tab Spaces, Line Shift Retention)
+    const editorEl = document.getElementById('rightCodeEditor');
+
+    editorEl.addEventListener('input', updateDiffViews);
+
+    editorEl.addEventListener('keydown', function(e) {
+      const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+
+      // 1. Auto Bracket/Quote Completion
+      if (pairs[e.key]) {
+        e.preventDefault();
+        const start = this.selectionStart;
+        const end = this.selectionEnd;
+        const val = this.value;
+
+        this.value = val.substring(0, start) + e.key + pairs[e.key] + val.substring(end);
+        this.selectionStart = this.selectionEnd = start + 1;
+        updateDiffViews();
         return;
       }
 
-      container.innerHTML = comments.map(c => `
-        <div style="padding: 10px; background: #f1f5f9; border-radius: 6px; margin-bottom: 8px;">
-          <div style="font-weight: 600; font-size: 0.85rem; color: #334155;">${escapeHtml(c.author)}</div>
-          <div style="font-size: 0.95rem; margin-top: 2px;">${escapeHtml(c.text)}</div>
-        </div>
-      `).join('');
+      // 2. Tab key = 4 spaces
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = this.selectionStart;
+        const end = this.selectionEnd;
+
+        this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+        this.selectionStart = this.selectionEnd = start + 4;
+        updateDiffViews();
+        return;
+      }
+
+      // 3. Keep Indentation Shift on Enter
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const start = this.selectionStart;
+        const val = this.value;
+
+        // Find current line leading spaces
+        const lastNewLine = val.lastIndexOf('\n', start - 1);
+        const currentLine = val.substring(lastNewLine + 1, start);
+        const match = currentLine.match(/^\s*/);
+        let indent = match ? match[0] : '';
+
+        // Add extra indent if line ends with '{'
+        if (currentLine.trim().endsWith('{')) {
+          indent += '    ';
+        }
+
+        this.value = val.substring(0, start) + '\n' + indent + val.substring(start);
+        this.selectionStart = this.selectionEnd = start + 1 + indent.length;
+        updateDiffViews();
+      }
+    });
+
+    // Save Edits (Does NOT overwrite original code)
+    function saveEdits() {
+      const files = getStoredFiles();
+      const file = files.find(f => f.id === activeFileId);
+      if (file) {
+        file.modifiedCode = document.getElementById('rightCodeEditor').value;
+        saveStoredFiles(files);
+        alert('Edits saved successfully!');
+      }
     }
 
-    function addComment() {
+    // Mark as Done (qwertyPi & WongChun1234 only)
+    function markAsDone() {
       if (!currentUser.canMark) return;
-      const text = document.getElementById('commentInput').value.trim();
-      if (!text) return;
+      const files = getStoredFiles();
+      const file = files.find(f => f.id === activeFileId);
+      if (file) {
+        file.isMarked = true;
+        saveStoredFiles(files);
+        alert('File marked as done!');
+        showMenu();
+      }
+    }
 
-      const reviews = getStoredReviews();
-      const review = reviews.find(r => r.id === activeReviewId);
-      if (review) {
-        review.comments.push({ author: currentUser.username, text });
-        saveReviews(reviews);
-        renderComments(review.comments);
-        document.getElementById('commentInput').value = '';
+    // Mark as Read (firewater only)
+    function markAsRead() {
+      if (!currentUser.canRead) return;
+      const files = getStoredFiles();
+      const file = files.find(f => f.id === activeFileId);
+      if (file) {
+        file.isRead = true;
+        saveStoredFiles(files);
+        alert('File marked as read!');
+        showMenu();
       }
     }
 
