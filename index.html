@@ -1,375 +1,159 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>C++ Code Review Platform</title>
-  <style>
-    :root {
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --text: #0f172a;
-      --border: #e2e8f0;
-      --danger: #ef4444;
-      --success: #10b981;
-    }
+// Valid Accounts Table
+const ACCOUNTS = {
+  'qwertypi': { displayName: 'qwertyPi', pass: 'password123456', role: 'Marker', canMark: true },
+  'wongchun1234': { displayName: 'WongChun1234', pass: 'password123456', role: 'Marker', canMark: true },
+  'firewater': { displayName: 'firewater', pass: 'password123456', role: 'Viewer', canMark: false }
+};
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: var(--bg); color: var(--text); line-height: 1.5; padding-bottom: 40px; }
+let currentUser = null;
+let activeReviewId = null;
 
-    .hidden { display: none !important; }
+// Login Handler
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const errDiv = document.getElementById('loginErrorMsg');
+  errDiv.classList.add('hidden');
 
-    /* Login Modal */
-    #loginOverlay {
-      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75);
-      display: flex; align-items: center; justify-content: center; z-index: 1000;
-    }
-    .login-card {
-      background: var(--card-bg); padding: 32px; border-radius: 12px;
-      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); width: 100%; max-width: 380px;
-    }
-    .login-card h2 { margin-bottom: 20px; font-size: 1.5rem; text-align: center; }
+  const inputUsername = document.getElementById('usernameInput').value.trim();
+  const inputPassword = document.getElementById('passwordInput').value.trim();
+  
+  // Case-insensitive account lookup
+  const accountKey = inputUsername.toLowerCase();
+  const account = ACCOUNTS[accountKey];
 
-    /* Navigation & Header */
-    header {
-      background: var(--card-bg); border-bottom: 1px solid var(--border);
-      padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
-    }
-    .user-info { display: flex; align-items: center; gap: 12px; font-weight: 500; }
-    .badge { padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; background: #e0e7ff; color: #3730a3; }
-
-    /* Main Layout */
-    .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 24px; }
-
-    /* Form Elements */
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; margin-bottom: 6px; font-size: 0.875rem; font-weight: 600; }
-    input[type="text"], input[type="password"], textarea {
-      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem;
-    }
-    textarea { font-family: "Fira Code", monospace; min-height: 140px; resize: vertical; }
-
-    .btn {
-      background: var(--primary); color: white; border: none; padding: 10px 18px;
-      border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s;
-    }
-    .btn:hover { background: var(--primary-hover); }
-    .btn-secondary { background: #64748b; }
-    .btn-secondary:hover { background: #475569; }
-
-    .error-msg { color: var(--danger); font-size: 0.875rem; margin-top: 8px; text-align: center; }
-
-    /* Review Grid */
-    .review-item {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 16px; border-bottom: 1px solid var(--border);
-    }
-    .review-item:last-child { border-bottom: none; }
-    .code-box {
-      background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 6px;
-      font-family: monospace; overflow-x: auto; white-space: pre; margin-top: 12px;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- LOGIN OVERLAY -->
-  <div id="loginOverlay">
-    <div class="login-card">
-      <h2>Sign In</h2>
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="usernameInput">Username</label>
-          <input type="text" id="usernameInput" placeholder="Enter username" required autocomplete="username">
-        </div>
-        <div class="form-group">
-          <label for="passwordInput">Password</label>
-          <input type="password" id="passwordInput" placeholder="Enter password" required autocomplete="current-password">
-        </div>
-        <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">Login</button>
-        <div id="loginErrorMsg" class="error-msg hidden"></div>
-      </form>
-    </div>
-  </div>
-
-  <!-- MAIN APP CONTENT -->
-  <div id="appContent" class="hidden">
-    <header>
-      <div class="user-info">
-        <span>User: <strong id="currentUserSpan">-</strong></span>
-        <span id="roleBadge" class="badge">-</span>
-      </div>
-      <button class="btn btn-secondary" onclick="logout()">Logout</button>
-    </header>
-
-    <main class="container">
-      <!-- MENU / DASHBOARD VIEW -->
-      <div id="menuView">
-        <div class="card">
-          <h3>Submit C++ Code for Review</h3>
-          <form id="submissionForm" style="margin-top: 16px;">
-            <div class="form-group">
-              <label for="titleInput">Title / Assignment Name</label>
-              <input type="text" id="titleInput" placeholder="e.g. Solution for Problem A" required>
-            </div>
-            <div class="form-group">
-              <label for="codeInput">C++ Source Code</label>
-              <textarea id="codeInput" placeholder="#include <iostream>&#10;using namespace std;&#10;&#10;int main() {&#10;    return 0;&#10;}" required></textarea>
-            </div>
-            <button type="submit" class="btn">Submit Code</button>
-          </form>
-        </div>
-
-        <div class="card">
-          <h3>Submitted Reviews</h3>
-          <div id="reviewsList" style="margin-top: 12px;">
-            <!-- Dynamic review items load here -->
-          </div>
-        </div>
-      </div>
-
-      <!-- CODE DETAIL VIEW -->
-      <div id="detailView" class="hidden">
-        <button class="btn btn-secondary" onclick="showView('menuView')" style="margin-bottom: 16px;">&larr; Back to Dashboard</button>
-        <div class="card">
-          <h2 id="detailTitle">Code Submission</h2>
-          <p style="font-size: 0.875rem; color: #64748b; margin-top: 4px;">Submitted by: <span id="detailAuthor">-</span></p>
-          <div id="detailCode" class="code-box"></div>
-
-          <div style="margin-top: 24px;">
-            <h3>Feedback & Review Notes</h3>
-            <div id="commentsContainer" style="margin-top: 12px;"></div>
-
-            <div id="addCommentSection" class="hidden" style="margin-top: 16px;">
-              <textarea id="commentInput" placeholder="Write feedback/comments on this code..."></textarea>
-              <button class="btn" onclick="addComment()" style="margin-top: 8px;">Add Feedback</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </main>
-  </div>
-
-  <script>
-    // SHA-256 for "password123456"
-    const DEFAULT_HASH = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
-
-    const ACCOUNTS = {
-      'qwertyPi': { hash: DEFAULT_HASH, role: 'Marker', canMark: true },
-      'WongChun1234': { hash: DEFAULT_HASH, role: 'Marker', canMark: true },
-      'firewater': { hash: DEFAULT_HASH, role: 'Viewer', canMark: false }
+  if (account && account.pass === inputPassword) {
+    currentUser = {
+      username: account.displayName,
+      role: account.role,
+      canMark: account.canMark
     };
 
-    let currentUser = null;
-    let activeReviewId = null;
-
-    // Pure JS SHA-256 implementation (Fallback for non-HTTPS / Local environments)
-    function jsSha256(ascii) {
-      function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
-      var mathPow = Math.pow, maxWord = mathPow(2, 32), lengthProperty = 'length', i, j, result = '', words = [];
-      var asciiBitLength = ascii[lengthProperty] * 8, hash = jsSha256.h = jsSha256.h || [], k = jsSha256.k = jsSha256.k || [], primeCounter = k[lengthProperty];
-      var isPrime = function(n) {
-        for (var factor = 2, factorSq = Math.sqrt(n); factor <= factorSq; factor++) if (n % factor === 0) return false;
-        return true;
-      };
-      for (var candidate = 2; primeCounter < 64; candidate++) {
-        if (isPrime(candidate)) {
-          if (primeCounter < 8) hash[primeCounter] = (mathPow(candidate, 1/2) * maxWord) | 0;
-          k[primeCounter] = (mathPow(candidate, 1/3) * maxWord) | 0;
-          primeCounter++;
-        }
-      }
-      ascii += '\x80';
-      while (ascii[lengthProperty] % 64 - 56) ascii += '\x00';
-      for (i = 0; i < ascii[lengthProperty]; i++) {
-        j = ascii.charCodeAt(i);
-        if (j >> 8) return;
-        words[i >> 2] |= j << ((3 - i % 4) * 8);
-      }
-      words[words[lengthProperty]] = ((asciiBitLength / maxWord) | 0);
-      words[words[lengthProperty]] = (asciiBitLength | 0);
-      for (j = 0; j < words[lengthProperty];) {
-        var w = words.slice(j, j += 16), oldHash = hash; hash = hash.slice(0, 8);
-        for (i = 0; i < 64; i++) {
-          var w15 = w[i - 15], w2 = w[i - 2], a = hash[0], e = hash[4];
-          var temp1 = hash[7] + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) + ((e & hash[5]) ^ ((~e) & hash[6])) + k[i] + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3)) + w[i - 7] + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))) | 0);
-          var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
-          hash = [(temp1 + temp2) | 0].concat(hash); hash[4] = (hash[4] + temp1) | 0;
-        }
-        for (i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
-      }
-      for (i = 0; i < 8; i++) {
-        for (j = 3; j >= 0; j--) {
-          var b = (hash[i] >> (j * 8)) & 255;
-          result += (b < 16 ? 0 : '') + b.toString(16);
-        }
-      }
-      return result;
+    document.getElementById('currentUserSpan').innerText = account.displayName;
+    document.getElementById('roleBadge').innerText = account.role;
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('appContent').classList.remove('hidden');
+    
+    if (currentUser.canMark) {
+      document.getElementById('addCommentSection').classList.remove('hidden');
+    } else {
+      document.getElementById('addCommentSection').classList.add('hidden');
     }
 
-    // Hash helper: Uses Web Crypto API if available, falls back to JS implementation
-    async function hashPassword(password) {
-      if (window.crypto && window.crypto.subtle) {
-        try {
-          const msgBuffer = new TextEncoder().encode(password);
-          const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-          return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-        } catch (e) {
-          console.warn("crypto.subtle unavailable, switching to JS fallback.");
-        }
-      }
-      return jsSha256(password);
-    }
+    renderReviewsList();
+  } else {
+    errDiv.innerText = "Invalid username or password.";
+    errDiv.classList.remove('hidden');
+  }
+});
 
-    // Login Handler
-    document.getElementById('loginForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const errDiv = document.getElementById('loginErrorMsg');
-      errDiv.classList.add('hidden');
+function logout() {
+  currentUser = null;
+  document.getElementById('loginForm').reset();
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('appContent').classList.add('hidden');
+}
 
-      const username = document.getElementById('usernameInput').value.trim();
-      const password = document.getElementById('passwordInput').value.trim();
+function showView(viewId) {
+  document.getElementById('menuView').classList.add('hidden');
+  document.getElementById('detailView').classList.add('hidden');
+  document.getElementById(viewId).classList.remove('hidden');
+}
 
-      if (!ACCOUNTS[username]) {
-        errDiv.innerText = "Invalid username or password.";
-        errDiv.classList.remove('hidden');
-        return;
-      }
+// Data Storage Management
+function getStoredReviews() {
+  return JSON.parse(localStorage.getItem('cpp_reviews') || '[]');
+}
 
-      const computedHash = await hashPassword(password);
-      if (computedHash === ACCOUNTS[username].hash) {
-        currentUser = { username, ...ACCOUNTS[username] };
-        document.getElementById('currentUserSpan').innerText = username;
-        document.getElementById('roleBadge').innerText = currentUser.role;
-        document.getElementById('loginOverlay').classList.add('hidden');
-        document.getElementById('appContent').classList.remove('hidden');
-        
-        if (currentUser.canMark) {
-          document.getElementById('addCommentSection').classList.remove('hidden');
-        } else {
-          document.getElementById('addCommentSection').classList.add('hidden');
-        }
+function saveReviews(reviews) {
+  localStorage.setItem('cpp_reviews', JSON.stringify(reviews));
+}
 
-        renderReviewsList();
-      } else {
-        errDiv.innerText = "Invalid username or password.";
-        errDiv.classList.remove('hidden');
-      }
-    });
+document.getElementById('submissionForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const title = document.getElementById('titleInput').value.trim();
+  const code = document.getElementById('codeInput').value.trim();
 
-    function logout() {
-      currentUser = null;
-      document.getElementById('loginForm').reset();
-      document.getElementById('loginOverlay').classList.remove('hidden');
-      document.getElementById('appContent').classList.add('hidden');
-    }
+  const newReview = {
+    id: Date.now(),
+    title,
+    code,
+    author: currentUser.username,
+    comments: []
+  };
 
-    function showView(viewId) {
-      document.getElementById('menuView').classList.add('hidden');
-      document.getElementById('detailView').classList.add('hidden');
-      document.getElementById(viewId).classList.remove('hidden');
-    }
+  const reviews = getStoredReviews();
+  reviews.push(newReview);
+  saveReviews(reviews);
 
-    // Data Management
-    function getStoredReviews() {
-      return JSON.parse(localStorage.getItem('cpp_reviews') || '[]');
-    }
+  this.reset();
+  renderReviewsList();
+});
 
-    function saveReviews(reviews) {
-      localStorage.setItem('cpp_reviews', JSON.stringify(reviews));
-    }
+function renderReviewsList() {
+  const container = document.getElementById('reviewsList');
+  const reviews = getStoredReviews();
 
-    document.getElementById('submissionForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const title = document.getElementById('titleInput').value.trim();
-      const code = document.getElementById('codeInput').value.trim();
+  if (reviews.length === 0) {
+    container.innerHTML = '<p style="color: #64748b;">No code submissions found yet.</p>';
+    return;
+  }
 
-      const newReview = {
-        id: Date.now(),
-        title,
-        code,
-        author: currentUser.username,
-        comments: []
-      };
+  container.innerHTML = reviews.map(r => `
+    <div class="review-item">
+      <div>
+        <strong>${escapeHtml(r.title)}</strong>
+        <div style="font-size: 0.8rem; color: #64748b;">By: ${escapeHtml(r.author)} | Comments: ${r.comments.length}</div>
+      </div>
+      <button class="btn btn-secondary" onclick="openReview(${r.id})">View Code</button>
+    </div>
+  `).join('');
+}
 
-      const reviews = getStoredReviews();
-      reviews.push(newReview);
-      saveReviews(reviews);
+function openReview(id) {
+  const reviews = getStoredReviews();
+  const review = reviews.find(r => r.id === id);
+  if (!review) return;
 
-      this.reset();
-      renderReviewsList();
-    });
+  activeReviewId = id;
+  document.getElementById('detailTitle').innerText = review.title;
+  document.getElementById('detailAuthor').innerText = review.author;
+  document.getElementById('detailCode').innerText = review.code;
 
-    function renderReviewsList() {
-      const container = document.getElementById('reviewsList');
-      const reviews = getStoredReviews();
+  renderComments(review.comments);
+  showView('detailView');
+}
 
-      if (reviews.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No code submissions found yet.</p>';
-        return;
-      }
+function renderComments(comments) {
+  const container = document.getElementById('commentsContainer');
+  if (!comments || comments.length === 0) {
+    container.innerHTML = '<p style="color: #64748b; font-size: 0.9rem;">No feedback added yet.</p>';
+    return;
+  }
 
-      container.innerHTML = reviews.map(r => `
-        <div class="review-item">
-          <div>
-            <strong>${escapeHtml(r.title)}</strong>
-            <div style="font-size: 0.8rem; color: #64748b;">By: ${escapeHtml(r.author)} | Comments: ${r.comments.length}</div>
-          </div>
-          <button class="btn btn-secondary" onclick="openReview(${r.id})">View Code</button>
-        </div>
-      `).join('');
-    }
+  container.innerHTML = comments.map(c => `
+    <div style="padding: 10px; background: #f1f5f9; border-radius: 6px; margin-bottom: 8px;">
+      <div style="font-weight: 600; font-size: 0.85rem; color: #334155;">${escapeHtml(c.author)}</div>
+      <div style="font-size: 0.95rem; margin-top: 2px;">${escapeHtml(c.text)}</div>
+    </div>
+  `).join('');
+}
 
-    function openReview(id) {
-      const reviews = getStoredReviews();
-      const review = reviews.find(r => r.id === id);
-      if (!review) return;
+function addComment() {
+  if (!currentUser.canMark) return;
+  const text = document.getElementById('commentInput').value.trim();
+  if (!text) return;
 
-      activeReviewId = id;
-      document.getElementById('detailTitle').innerText = review.title;
-      document.getElementById('detailAuthor').innerText = review.author;
-      document.getElementById('detailCode').innerText = review.code;
+  const reviews = getStoredReviews();
+  const review = reviews.find(r => r.id === activeReviewId);
+  if (review) {
+    review.comments.push({ author: currentUser.username, text });
+    saveReviews(reviews);
+    renderComments(review.comments);
+    document.getElementById('commentInput').value = '';
+  }
+}
 
-      renderComments(review.comments);
-      showView('detailView');
-    }
-
-    function renderComments(comments) {
-      const container = document.getElementById('commentsContainer');
-      if (!comments || comments.length === 0) {
-        container.innerHTML = '<p style="color: #64748b; font-size: 0.9rem;">No feedback added yet.</p>';
-        return;
-      }
-
-      container.innerHTML = comments.map(c => `
-        <div style="padding: 10px; background: #f1f5f9; border-radius: 6px; margin-bottom: 8px;">
-          <div style="font-weight: 600; font-size: 0.85rem; color: #334155;">${escapeHtml(c.author)}</div>
-          <div style="font-size: 0.95rem; margin-top: 2px;">${escapeHtml(c.text)}</div>
-        </div>
-      `).join('');
-    }
-
-    function addComment() {
-      if (!currentUser.canMark) return;
-      const text = document.getElementById('commentInput').value.trim();
-      if (!text) return;
-
-      const reviews = getStoredReviews();
-      const review = reviews.find(r => r.id === activeReviewId);
-      if (review) {
-        review.comments.push({ author: currentUser.username, text });
-        saveReviews(reviews);
-        renderComments(review.comments);
-        document.getElementById('commentInput').value = '';
-      }
-    }
-
-    function escapeHtml(str) {
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-  </script>
-</body>
-</html>
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
