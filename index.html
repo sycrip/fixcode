@@ -5,15 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VS Code C++ Code Review Platform</title>
   <style>
+    /* VS Code Default Dark+ Palette */
     :root {
-      --bg-dark: #1e1e1e;
-      --bg-sidebar: #252526;
-      --bg-card: #2d2d2d;
-      --border-color: #3c3c3c;
-      --text-main: #d4d4d4;
+      --bg-dark: #181818;
+      --bg-sidebar: #1f1f1f;
+      --bg-card: #252526;
+      --border-color: #333333;
+      --text-main: #cccccc;
       --text-muted: #858585;
-      --accent-blue: #0e639c;
-      --accent-blue-hover: #1177bb;
+      --accent-blue: #007acc;
+      --accent-blue-hover: #0062a3;
       --diff-del-bg: #4b1818;
       --diff-del-text: #f85149;
       --diff-add-bg: #143d23;
@@ -21,9 +22,11 @@
       --badge-done: #238636;
       --badge-pending: #9e6a03;
       --badge-read: #388bfd;
+      --btn-danger: #a40e0e;
+      --btn-danger-hover: #be1111;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
     body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.5; min-height: 100vh; }
 
     .hidden { display: none !important; }
@@ -35,10 +38,10 @@
     }
     .login-card {
       background: var(--bg-card); border: 1px solid var(--border-color);
-      padding: 32px; border-radius: 8px; width: 100%; max-width: 380px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      padding: 32px; border-radius: 6px; width: 100%; max-width: 380px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     }
-    .login-card h2 { margin-bottom: 20px; font-size: 1.4rem; text-align: center; color: #ffffff; }
+    .login-card h2 { margin-bottom: 20px; font-size: 1.3rem; text-align: center; color: #ffffff; }
 
     /* Header */
     header {
@@ -52,7 +55,7 @@
 
     /* Common UI Components */
     .container { max-width: 1400px; margin: 20px auto; padding: 0 16px; }
-    .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+    .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 4px; padding: 20px; margin-bottom: 20px; }
     
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-muted); }
@@ -72,6 +75,8 @@
     .btn-secondary:hover { background: #45494e; }
     .btn-success { background: #238636; }
     .btn-success:hover { background: #2ea043; }
+    .btn-danger { background: var(--btn-danger); }
+    .btn-danger:hover { background: var(--btn-danger-hover); }
 
     /* Badges */
     .status-tag { padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600; margin-left: 6px; }
@@ -96,7 +101,7 @@
     .code-container {
       font-family: 'Consolas', 'Courier New', monospace; font-size: 13px;
       line-height: 1.4; padding: 12px; min-height: 450px; max-height: 600px;
-      overflow: auto; white-space: pre; tab-size: 4;
+      overflow: auto; white-space: pre; tab-size: 4; background-color: #1e1e1e;
     }
 
     textarea.code-editor {
@@ -193,6 +198,7 @@
             <button id="saveEditsBtn" class="btn btn-success" onclick="saveEdits()">Save Edits</button>
             <button id="markDoneBtn" class="btn hidden" style="background: #8957e5;" onclick="markAsDone()">Mark as Done</button>
             <button id="markReadBtn" class="btn btn-secondary hidden" onclick="markAsRead()">Mark as Read</button>
+            <button id="deleteActiveFileBtn" class="btn btn-danger hidden" onclick="deleteActiveFile()">Delete File</button>
           </div>
         </div>
 
@@ -350,6 +356,25 @@
       renderFileList();
     });
 
+    // Delete File Helper Function
+    function deleteFile(id, event) {
+      if (event) event.stopPropagation();
+      if (!currentUser.canUpload) return;
+
+      if (confirm("Are you sure you want to delete this file?")) {
+        let files = getStoredFiles();
+        files = files.filter(f => f.id !== id);
+        saveStoredFiles(files);
+        renderFileList();
+      }
+    }
+
+    function deleteActiveFile() {
+      if (!activeFileId || !currentUser.canUpload) return;
+      deleteFile(activeFileId);
+      showMenu();
+    }
+
     // File List Rendering
     function renderFileList() {
       const files = getStoredFiles();
@@ -379,6 +404,10 @@
         else statusBadges += '<span class="status-tag tag-pending">Pending</span>';
         if (f.isRead) statusBadges += '<span class="status-tag tag-read">Read</span>';
 
+        const deleteBtnHtml = currentUser.canUpload 
+          ? `<button class="btn btn-danger" onclick="deleteFile(${f.id}, event)">Delete</button>` 
+          : '';
+
         return `
           <div class="file-item">
             <div class="file-meta">
@@ -386,7 +415,10 @@
               <span class="file-tag-pill">${escapeHtml(f.tag)}</span>
               ${statusBadges}
             </div>
-            <button class="btn btn-secondary" onclick="openFileEditor(${f.id})">Open & View</button>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-secondary" onclick="openFileEditor(${f.id})">Open & View</button>
+              ${deleteBtnHtml}
+            </div>
           </div>
         `;
       }).join('');
@@ -411,6 +443,7 @@
       const saveEditsBtn = document.getElementById('saveEditsBtn');
       const markDoneBtn = document.getElementById('markDoneBtn');
       const markReadBtn = document.getElementById('markReadBtn');
+      const deleteActiveFileBtn = document.getElementById('deleteActiveFileBtn');
 
       if (currentUser.canMark) {
         // Markers (qwertyPi & WongChun1234): Show editable textarea on the right
@@ -422,6 +455,7 @@
         saveEditsBtn.classList.remove('hidden');
         markDoneBtn.classList.remove('hidden');
         markReadBtn.classList.add('hidden');
+        deleteActiveFileBtn.classList.add('hidden');
       } else {
         // Viewer (firewater): Show unified content comparison result on the right
         rightPaneHeader.innerText = "COMPARISON RESULT";
@@ -431,6 +465,7 @@
         saveEditsBtn.classList.add('hidden');
         markDoneBtn.classList.add('hidden');
         markReadBtn.classList.remove('hidden');
+        deleteActiveFileBtn.classList.remove('hidden');
 
         renderComparisonResult(file.originalCode, file.modifiedCode);
       }
