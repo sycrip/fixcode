@@ -222,52 +222,109 @@
   </div>
 
   <script>
-    // SHA-256 for "password123456"
-    const DEFAULT_HASH = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+    // Pre-computed SHA-256 hash for "password123456"
+const PASSWORD_HASH = 'e2c2f211320399d2127161b953460f785b8393527b409c25f541e21e78076632';
 
-    const ACCOUNTS = {
-      'qwertypi': { name: 'qwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false },
-      'wongchun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false },
-      'firewater': { name: 'firewater', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true }
-    };
+const ACCOUNTS = {
+  'qwertypi': { name: 'qwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false },
+  'wongchun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false },
+  'firewater': { name: 'firewater', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true }
+};
 
-    let currentUser = null;
-    let activeFileId = null;
+let currentUser = null;
+let activeFileId = null;
 
-    // Login Form Submit
-    document.getElementById('loginForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const uInput = document.getElementById('usernameInput').value.trim();
-      const pInput = document.getElementById('passwordInput').value.trim();
-      const errDiv = document.getElementById('loginErrorMsg');
+// SHA-256 Hash Function with Browser & Fallback Support
+async function hashSHA256(str) {
+  if (window.crypto && window.crypto.subtle) {
+    try {
+      const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) {
+      /* Fallback if SubtleCrypto is unavailable */
+    }
+  }
+  return pureJsSHA256(str);
+}
 
-      const accountKey = uInput.toLowerCase();
-      const account = ACCOUNTS[accountKey];
+// Pure JS SHA-256 Fallback for Offline / Local File Protocols
+function pureJsSHA256(ascii) {
+  function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
+  var mathPow = Math.pow, maxWord = mathPow(2, 32), lengthProperty = 'length', i, j, result = '';
+  var words = [], asciiBitLength = ascii[lengthProperty] * 8;
+  var hash = pureJsSHA256.h = pureJsSHA256.h || [];
+  var k = pureJsSHA256.k = pureJsSHA256.k || [];
+  var primeCounter = k[lengthProperty], isComposite = {};
+  for (var candidate = 2; primeCounter < 64; candidate++) {
+    if (!isComposite[candidate]) {
+      for (i = 0; i < 300; i += candidate) isComposite[i] = candidate;
+      if (primeCounter < 8) hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
+      k[primeCounter++] = (mathPow(candidate, 1/3) * maxWord) | 0;
+    }
+  }
+  ascii += '\x80';
+  while (ascii[lengthProperty] % 64 - 56) ascii += '\x00';
+  for (i = 0; i < ascii[lengthProperty]; i++) {
+    j = ascii.charCodeAt(i);
+    if (j >> 8) return;
+    words[i >> 2] |= j << ((3 - i % 4) * 8);
+  }
+  words[words[lengthProperty]] = ((asciiBitLength / maxWord) | 0);
+  words[words[lengthProperty]] = (asciiBitLength);
+  for (j = 0; j < words[lengthProperty];) {
+    var w = words.slice(j, j += 16), oldHash = hash;
+    hash = hash.slice(0, 8);
+    for (i = 0; i < 64; i++) {
+      var w15 = w[i - 15], w2 = w[i - 2], a = hash[0], e = hash[4];
+      var temp1 = hash[7] + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
+        + ((e & hash[5]) ^ ((~e) & hash[6])) + k[i]
+        + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3)) + w[i - 7] + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))) | 0);
+      var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+      hash = [(temp1 + temp2) | 0].concat(hash);
+      hash[4] = (hash[4] + temp1) | 0;
+    }
+    for (i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
+  }
+  for (i = 0; i < 8; i++) {
+    for (j = 3; j >= 0; j--) {
+      var b = (hash[i] >> (j * 8)) & 255;
+      result += (b < 16 ? '0' : '') + b.toString(16);
+    }
+  }
+  return result;
+}
 
-      if (account) {
-        const hashedInput = await hashSHA256(pInput);
-        if (hashedInput === DEFAULT_HASH) {
-          currentUser = account;
-          document.getElementById('currentUserSpan').innerText = currentUser.name;
-          document.getElementById('userRoleBadge').innerText = currentUser.role;
+// Login Form Submit Listener
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const uInput = document.getElementById('usernameInput').value.trim();
+  const pInput = document.getElementById('passwordInput').value.trim();
+  const errDiv = document.getElementById('loginErrorMsg');
 
-          document.getElementById('loginOverlay').classList.add('hidden');
-          document.getElementById('appContent').classList.remove('hidden');
+  const accountKey = uInput.toLowerCase();
+  const account = ACCOUNTS[accountKey];
+  const inputHash = await hashSHA256(pInput);
 
-          // Toggle Upload Section based on user role
-          if (currentUser.canUpload) {
-            document.getElementById('uploadSection').classList.remove('hidden');
-          } else {
-            document.getElementById('uploadSection').classList.add('hidden');
-          }
+  if (account && inputHash === PASSWORD_HASH) {
+    currentUser = account;
+    document.getElementById('currentUserSpan').innerText = currentUser.name;
+    document.getElementById('userRoleBadge').innerText = currentUser.role;
 
-          // Always stay on Menu after login
-          showMenu();
-          return;
-        }
-      }
-      errDiv.classList.remove('hidden');
-    });
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('appContent').classList.remove('hidden');
+
+    if (currentUser.canUpload) {
+      document.getElementById('uploadSection').classList.remove('hidden');
+    } else {
+      document.getElementById('uploadSection').classList.add('hidden');
+    }
+
+    showMenu();
+    return;
+  }
+
+  errDiv.classList.remove('hidden');
+});
 
     function logout() {
       currentUser = null;
