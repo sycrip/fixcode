@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>C++ Code Review & Diff Platform</title>
+  <style>
+    /* Dark VSCode Theme Basics */
+    :root {
+      --bg-dark: #1e1e1e;
+      --bg-editor: #1e1e1e;
+      --bg-sidebar: #252526;
+      --bg-input: #3c3c3c;
+      --border-color: #474747;
+      --text-main: #d4d4d4;
+      --accent: #0e639c;
+      --accent-hover: #1177bb;
+      --delete-bg: #5a1d1d;
+      --add-bg: #1e4a28;
+    }
+
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { margin: 0; padding: 0; background-color: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; }
+    
+    header { background: #333; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
+    header h1 { margin: 0; font-size: 1.2rem; cursor: pointer; }
+    
+    .btn { background: var(--accent); color: white; border: none; padding: 6px 14px; border-radius: 3px; cursor: pointer; font-size: 0.9rem; }
+    .btn:hover { background: var(--accent-hover); }
+    .btn-secondary { background: #555; }
+    .btn-secondary:hover { background: #666; }
+    .btn-success { background: #28a745; }
+    .btn-success:hover { background: #218838; }
+
+    input, select, textarea { background: var(--bg-input); color: white; border: 1px solid var(--border-color); padding: 8px; border-radius: 3px; }
+    
+    .container { flex: 1; padding: 20px; overflow-y: auto; }
+    .hidden { display: none !important; }
+
+    /* Auth Bar */
+    .user-info { display: flex; gap: 10px; align-items: center; }
+
+    /* Menu & Lists */
+    .section-title { font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-top: 20px; margin-bottom: 10px; color: #569cd6; }
+    .file-card { background: var(--bg-sidebar); border: 1px solid var(--border-color); padding: 12px; margin-bottom: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .file-card:hover { border-color: #007acc; }
+    .tag { background: #4ec9b0; color: black; padding: 2px 6px; border-radius: 3px; font-size: 0.8rem; margin-left: 10px; font-weight: bold; }
+    .status-badge { font-size: 0.8rem; padding: 2px 6px; border-radius: 3px; margin-left: 5px; }
+    .badge-marked { background: #d7ba7d; color: black; }
+    .badge-read { background: #6a9955; color: white; }
+
+    /* Forms */
+    .form-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+    .form-group label { font-size: 0.9rem; }
+
+    /* Editor Layout */
+    .editor-container { display: flex; flex-direction: column; height: calc(100vh - 80px); }
+    .editor-toolbar { background: var(--bg-sidebar); padding: 8px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); }
+    .editor-panes { display: flex; flex: 1; overflow: hidden; }
+    .pane { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border-color); overflow: hidden; }
+    .pane-header { background: #2d2d2d; padding: 5px 10px; font-size: 0.85rem; border-bottom: 1px solid var(--border-color); color: #888; }
+    
+    .code-view, textarea.code-input {
+      flex: 1;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 10px;
+      white-space: pre;
+      overflow: auto;
+      background: var(--bg-editor);
+      color: var(--text-main);
+      border: none;
+      outline: none;
+      tab-size: 4;
+    }
+
+    textarea.code-input { resize: none; }
+
+    /* Diff Highlightings */
+    .line-deleted { background-color: var(--delete-bg); text-decoration: line-through; display: block; }
+    .text-added { text-decoration: underline; background-color: var(--add-bg); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1 onclick="showView('menuView')">C++ Reviewer Platform</h1>
+    <div class="user-info">
+      <div id="loggedOutNav">
+        <input type="text" id="usernameInput" placeholder="Username" style="width: 110px;">
+        <input type="password" id="passwordInput" placeholder="Password" style="width: 110px;">
+        <button class="btn" onclick="login()">Login</button>
+      </div>
+      <div id="loggedInNav" class="hidden">
+        <span>User: <strong id="currentUserSpan" style="color:#569cd6;"></strong></span>
+        <button class="btn btn-secondary" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MENU VIEW -->
+  <div id="menuView" class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2>Files Dashboard</h2>
+      <button class="btn btn-success" onclick="showView('uploadView')">+ Upload C++ / Code</button>
+    </div>
+    <div id="fileListContainer"></div>
+  </div>
+
+  <!-- UPLOAD VIEW -->
+  <div id="uploadView" class="container hidden">
+    <h2>Upload C++ File or Raw Text</h2>
+    <div style="max-width: 600px;">
+      <div class="form-group">
+        <label>Code Name:</label>
+        <input type="text" id="uploadName" placeholder="e.g. Binary Search Tree">
+      </div>
+      <div class="form-group">
+        <label>Tag:</label>
+        <input type="text" id="uploadTag" placeholder="e.g. Data Structures, Homework 1">
+      </div>
+      <div class="form-group">
+        <label>Select File (.cpp, .h, .txt):</label>
+        <input type="file" id="uploadFileInput" accept=".cpp,.h,.hpp,.txt" onchange="handleFileSelect(event)">
+      </div>
+      <div class="form-group">
+        <label>Or Paste C++ Code Directly:</label>
+        <textarea id="uploadCodeText" style="height: 200px; font-family: monospace;"></textarea>
+      </div>
+      <button class="btn btn-success" onclick="saveNewUpload()">Submit & Upload</button>
+      <button class="btn btn-secondary" onclick="showView('menuView')">Cancel</button>
+    </div>
+  </div>
+
+  <!-- EDITOR & DIFF VIEW -->
+  <div id="editorView" class="hidden">
+    <div class="editor-container">
+      <div class="editor-toolbar">
+        <div>
+          <button class="btn btn-secondary" onclick="showView('menuView')">&larr; Back to Menu</button>
+          <span id="editorTitle" style="margin-left: 15px; font-weight: bold;"></span>
+        </div>
+        <div>
+          <button class="btn btn-success" onclick="saveEdit()">Save Edits</button>
+          <button id="markDoneBtn" class="btn hidden" style="background:#d7ba7d; color:black;" onclick="toggleMarkDone()">Mark as Done</button>
+          <button id="markReadBtn" class="btn hidden" style="background:#6a9955;" onclick="toggleMarkRead()">Mark as Read</button>
+        </div>
+      </div>
+      <div class="editor-panes">
+        <!-- Original Code View (Left) -->
+        <div class="pane">
+          <div class="pane-header">Original Code</div>
+          <div id="leftEditor" class="code-view"></div>
+        </div>
+        <!-- Modified Code Editor (Right) -->
+        <div class="pane">
+          <div class="pane-header">Modified Code (Editable)</div>
+          <textarea id="rightEditor" class="code-input" spellcheck="false"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // System Data state in localStorage
+    let files = JSON.parse(localStorage.getItem('cpp_files') || '[]');
+    let currentUser = null; // { username, role }
+    let activeFileId = null;
+
+    // Accounts Configuration
+    const ACCOUNTS = {
+      'qwertyPi': { pass: '123456', canMark: true },
+      'WongChun1234': { pass: '123456', canMark: true },
+      'firewater': { pass: '123456', canRead: true }
+    };
+
+    // --- Authentication ---
+    function login() {
+      const u = document.getElementById('usernameInput').value.trim();
+      const p = document.getElementById('passwordInput').value.trim();
+
+      if (ACCOUNTS[u] && ACCOUNTS[u].pass === p) {
+        currentUser = { username: u, ...ACCOUNTS[u] };
+        document.getElementById('currentUserSpan').innerText = u;
+        document.getElementById('loggedOutNav').classList.add('hidden');
+        document.getElementById('loggedInNav').classList.remove('hidden');
+        renderMenuList();
+      } else {
+        alert('Invalid credentials!');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('loggedOutNav').classList.remove('hidden');
+      document.getElementById('loggedInNav').classList.add('hidden');
+      document.getElementById('usernameInput').value = '';
+      document.getElementById('passwordInput').value = '';
+      renderMenuList();
+    }
+
+    // --- Navigation ---
+    function showView(viewId) {
+      document.getElementById('menuView').classList.add('hidden');
+      document.getElementById('uploadView').classList.add('hidden');
+      document.getElementById('editorView').classList.add('hidden');
+      document.getElementById(viewId).classList.remove('hidden');
+
+      if (viewId === 'menuView') renderMenuList();
+    }
+
+    // --- Upload Logic ---
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('uploadCodeText').value = e.target.result;
+        if (!document.getElementById('uploadName').value) {
+          document.getElementById('uploadName').value = file.name;
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function saveNewUpload() {
+      const name = document.getElementById('uploadName').value.trim();
+      const tag = document.getElementById('uploadTag').value.trim();
+      const code = document.getElementById('uploadCodeText').value;
+
+      if (!name || !code) {
+        alert('Please fill in code name and content.');
+        return;
+      }
+
+      const newFile = {
+        id: Date.now().toString(),
+        name: name,
+        tag: tag || 'General',
+        originalCode: code,
+        modifiedCode: code,
+        markedDone: false,
+        readByFirewater: false
+      };
+
+      files.push(newFile);
+      saveStorage();
+      
+      // Reset Form
+      document.getElementById('uploadName').value = '';
+      document.getElementById('uploadTag').value = '';
+      document.getElementById('uploadCodeText').value = '';
+      document.getElementById('uploadFileInput').value = '';
+
+      showView('menuView');
+    }
+
+    function saveStorage() {
+      localStorage.setItem('cpp_files', JSON.stringify(files));
+    }
+
+    // --- Menu Rendering (Categorized by account permissions) ---
+    function renderMenuList() {
+      const container = document.getElementById('fileListContainer');
+      container.innerHTML = '';
+
+      if (files.length === 0) {
+        container.innerHTML = '<p style="color:#888;">No files uploaded yet.</p>';
+        return;
+      }
+
+      const isFirewater = currentUser && currentUser.username === 'firewater';
+
+      if (isFirewater) {
+        // Special categorization for 'firewater'
+        const markedNotRead = files.filter(f => f.markedDone && !f.readByFirewater);
+        const notMarked = files.filter(f => !f.markedDone);
+        const readFiles = files.filter(f => f.readByFirewater);
+
+        renderSection(container, '1. Marked as Done (Unread)', markedNotRead);
+        renderSection(container, '2. Not Marked as Done', notMarked);
+        renderSection(container, '3. Read Files', readFiles);
+      } else {
+        // Default View (Regular users, qwertyPi, WongChun1234)
+        const notMarked = files.filter(f => !f.markedDone);
+        const markedDone = files.filter(f => f.markedDone);
+
+        renderSection(container, 'Pending / In Progress', notMarked);
+        renderSection(container, 'Marked as Done', markedDone);
+      }
+    }
+
+    function renderSection(container, title, fileGroup) {
+      if (fileGroup.length === 0) return;
+
+      const titleEl = document.createElement('div');
+      titleEl.className = 'section-title';
+      titleEl.innerText = title;
+      container.appendChild(titleEl);
+
+      fileGroup.forEach(file => {
+        const card = document.createElement('div');
+        card.className = 'file-card';
+        card.onclick = () => openEditor(file.id);
+
+        let badges = `<span class="tag">${escapeHtml(file.tag)}</span>`;
+        if (file.markedDone) badges += `<span class="status-badge badge-marked">Done</span>`;
+        if (file.readByFirewater) badges += `<span class="status-badge badge-read">Read</span>`;
+
+        card.innerHTML = `
+          <div>
+            <strong>${escapeHtml(file.name)}</strong>
+            ${badges}
+          </div>
+          <div style="color: #888; font-size: 0.85rem;">Click to review &rarr;</div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // --- Editor & Diff Logic ---
+    function openEditor(fileId) {
+      activeFileId = fileId;
+      const file = files.find(f => f.id === fileId);
+      if (!file) return;
+
+      document.getElementById('editorTitle').innerText = `${file.name} [${file.tag}]`;
+      
+      const rightEdit = document.getElementById('rightEditor');
+      rightEdit.value = file.modifiedCode;
+
+      // Update Action Buttons
+      const markDoneBtn = document.getElementById('markDoneBtn');
+      const markReadBtn = document.getElementById('markReadBtn');
+
+      if (currentUser && currentUser.canMark) {
+        markDoneBtn.classList.remove('hidden');
+        markDoneBtn.innerText = file.markedDone ? 'Unmark Done' : 'Mark as Done';
+      } else {
+        markDoneBtn.classList.add('hidden');
+      }
+
+      if (currentUser && currentUser.canRead) {
+        markReadBtn.classList.remove('hidden');
+        markReadBtn.innerText = file.readByFirewater ? 'Unmark Read' : 'Mark as Read';
+      } else {
+        markReadBtn.classList.add('hidden');
+      }
+
+      updateDiff();
+      showView('editorView');
+    }
+
+    function updateDiff() {
+      const file = files.find(f => f.id === activeFileId);
+      if (!file) return;
+
+      const origLines = file.originalCode.split('\n');
+      const modLines = document.getElementById('rightEditor').value.split('\n');
+
+      const leftContainer = document.getElementById('leftEditor');
+      leftContainer.innerHTML = '';
+
+      // Simple line-by-line diff comparison
+      const maxLines = Math.max(origLines.length, modLines.length);
+      for (let i = 0; i < maxLines; i++) {
+        const orig = origLines[i];
+        const mod = modLines[i];
+
+        const lineEl = document.createElement('div');
+
+        if (orig !== undefined && mod !== undefined) {
+          if (orig !== mod) {
+            // Line modified
+            lineEl.className = 'line-deleted';
+            lineEl.textContent = orig;
+          } else {
+            // Unchanged line
+            lineEl.textContent = orig;
+          }
+        } else if (orig !== undefined) {
+          // Line deleted from original
+          lineEl.className = 'line-deleted';
+          lineEl.textContent = orig;
+        } else {
+          // Empty placeholder on left when new line added on right
+          lineEl.innerHTML = '&nbsp;';
+        }
+        leftContainer.appendChild(lineEl);
+      }
+    }
+
+    function saveEdit() {
+      const file = files.find(f => f.id === activeFileId);
+      if (!file) return;
+
+      file.modifiedCode = document.getElementById('rightEditor').value;
+      saveStorage();
+      alert('Edits saved successfully! (Original version preserved)');
+      updateDiff();
+    }
+
+    function toggleMarkDone() {
+      const file = files.find(f => f.id === activeFileId);
+      if (!file) return;
+
+      file.markedDone = !file.markedDone;
+      saveStorage();
+      openEditor(activeFileId);
+    }
+
+    function toggleMarkRead() {
+      const file = files.find(f => f.id === activeFileId);
+      if (!file) return;
+
+      file.readByFirewater = !file.readByFirewater;
+      saveStorage();
+      openEditor(activeFileId);
+    }
+
+    // --- Smart Textarea Extensions (Auto-brackets & Tab shifting) ---
+    const textarea = document.getElementById('rightEditor');
+
+    textarea.addEventListener('input', () => {
+      updateDiff();
+    });
+
+    textarea.addEventListener('keydown', function(e) {
+      const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+      const start = this.selectionStart;
+      const end = this.selectionEnd;
+
+      // 1. Tab Key Handling (4 Spaces & Column shift maintenance)
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        this.value = this.value.substring(0, start) + "    " + this.value.substring(end);
+        this.selectionStart = this.selectionEnd = start + 4;
+        updateDiff();
+        return;
+      }
+
+      // 2. Auto Bracket Completion
+      if (pairs[e.key]) {
+        e.preventDefault();
+        const closePair = pairs[e.key];
+        const selectedText = this.value.substring(start, end);
+
+        this.value = this.value.substring(0, start) + e.key + selectedText + closePair + this.value.substring(end);
+        this.selectionStart = start + 1;
+        this.selectionEnd = end + 1;
+        updateDiff();
+        return;
+      }
+
+      // 3. Keep Indentation / Column Shift on Enter Key
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const currentLine = this.value.substring(0, start).split('\n').pop();
+        const indentMatch = currentLine.match(/^(\s*)/);
+        let indent = indentMatch ? indentMatch[0] : '';
+        
+        // Extra indent if line ends with opening bracket
+        if (currentLine.trim().endsWith('{')) {
+          indent += '    ';
+        }
+
+        this.value = this.value.substring(0, start) + '\n' + indent + this.value.substring(end);
+        this.selectionStart = this.selectionEnd = start + 1 + indent.length;
+        updateDiff();
+        return;
+      }
+    });
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
+    }
+
+    // Initial render
+    renderMenuList();
+  </script>
+</body>
+</html>
