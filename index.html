@@ -107,8 +107,8 @@
 
     /* Code Display Blocks */
     .code-container {
-      font-family: 'Consolas', 'Cascadia Code', 'Courier New', monospace;
-      font-size: 13px; line-height: 1.5; padding: 12px;
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+      font-size: 13px; line-height: 19px; padding: 12px;
       min-height: 480px; max-height: 600px; overflow: auto;
       white-space: pre; tab-size: 4; background-color: var(--bg-editor);
       color: var(--syn-default);
@@ -121,20 +121,34 @@
       background: var(--bg-editor);
     }
     
+    /* Strict font and rendering alignment rules */
     .highlight-layer, textarea.code-editor {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      font-family: 'Consolas', 'Cascadia Code', 'Courier New', monospace;
-      font-size: 13px; line-height: 1.5; padding: 12px; tab-size: 4;
-      white-space: pre; margin: 0; border: none; outline: none;
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+      font-size: 13px;
+      line-height: 19px; /* Fixed pixel line-height prevents subpixel drift */
+      padding: 12px;
+      tab-size: 4;
+      white-space: pre;
+      margin: 0;
+      border: 0px solid transparent;
+      outline: none;
       box-sizing: border-box;
+      
+      /* Force identical text metrics */
+      letter-spacing: 0px;
+      word-spacing: 0px;
+      font-variant-ligatures: none;
+      font-feature-settings: "liga" 0;
+      -webkit-font-smoothing: antialiased;
     }
     
     /* Highlight div sits behind */
     .highlight-layer {
       z-index: 1;
       color: var(--syn-default);
-      overflow: hidden; /* Scroll is synced with textarea */
-      pointer-events: none; /* Let clicks pass through */
+      overflow: hidden;
+      pointer-events: none;
     }
 
     /* Textarea sits on front, transparent text but visible cursor */
@@ -142,23 +156,34 @@
       z-index: 2;
       color: transparent;
       background: transparent;
-      caret-color: #d4d4d4; /* Default VS Code Cursor Color */
+      caret-color: #d4d4d4;
       resize: none;
       overflow: auto;
     }
 
     /* Syntax Highlighting CSS Tokens */
-    .syn-keyword { color: var(--syn-keyword); font-weight: bold; }
-    .syn-control { color: var(--syn-control); font-weight: bold; }
+    .syn-keyword { color: var(--syn-keyword); font-weight: normal; }
+    .syn-control { color: var(--syn-control); font-weight: normal; }
     .syn-string  { color: var(--syn-string); }
     .syn-comment { color: var(--syn-comment); font-style: italic; }
     .syn-number  { color: var(--syn-number); }
     .syn-func    { color: var(--syn-func); }
 
     /* Diff Highlight Line Rows */
-    .diff-row { display: block; width: 100%; min-height: 20px; padding: 0 4px; }
-    .diff-del { background-color: var(--diff-del-bg); border-left: 3px solid #f85149; }
-    .diff-add { background-color: var(--diff-add-bg); border-left: 3px solid #3fb950; }
+    .diff-row { display: block; width: 100%; min-height: 19px; padding: 0 4px; }
+    .diff-del { 
+      background-color: var(--diff-del-bg); 
+      border-left: 3px solid #f85149; 
+      text-decoration: line-through; 
+      text-decoration-color: #f85149; 
+    }
+    .diff-add { 
+      background-color: var(--diff-add-bg); 
+      border-left: 3px solid #3fb950; 
+      text-decoration: underline; 
+      text-decoration-color: #3fb950; 
+      text-underline-offset: 2px; 
+    }
     .diff-equal { border-left: 3px solid transparent; }
   </style>
 </head>
@@ -456,7 +481,7 @@
         diffView.classList.add('hidden');
         
         document.getElementById('rightCodeEditor').value = file.modifiedCode || file.originalCode;
-        syncEditorHighlighting(); // Instantly apply syntax colors to the editor
+        syncEditorHighlighting();
 
         document.getElementById('saveEditsBtn').classList.remove('hidden');
         document.getElementById('markDoneBtn').classList.remove('hidden');
@@ -485,7 +510,6 @@
 
     function syncEditorHighlighting() {
       const code = editorTextarea.value;
-      // Add a trailing space if it ends in newline so the div expands exactly like the textarea
       highlightLayer.innerHTML = highlightCpp(code) + (code.endsWith('\n') ? ' ' : '');
     }
 
