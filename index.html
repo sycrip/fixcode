@@ -22,13 +22,13 @@
       --diff-add-bg: rgba(46, 160, 67, 0.22);
       
       /* VS Code C++ Syntax Palette */
-      --syn-keyword: #569cd6;   /* Blue: int, void, class, namespace */
-      --syn-control: #c586c0;   /* Purple: return, if, else, #include */
-      --syn-string: #ce9178;    /* Orange/Light Brown: "string" */
-      --syn-comment: #6a9955;   /* Green: // comments */
-      --syn-number: #b5cea8;    /* Light Green: 0, 3.14 */
-      --syn-func: #dcdcaa;      /* Yellow: function names */
-      --syn-default: #d4d4d4;   /* Light Gray: regular text */
+      --syn-keyword: #569cd6;
+      --syn-control: #c586c0;
+      --syn-string: #ce9178;
+      --syn-comment: #6a9955;
+      --syn-number: #b5cea8;
+      --syn-func: #dcdcaa;
+      --syn-default: #d4d4d4;
 
       --badge-done: #238636;
       --badge-pending: #9e6a03;
@@ -114,19 +114,18 @@
       color: var(--syn-default);
     }
 
-    /* REAL-TIME SYNTAX HIGHLIGHTING EDITOR WRAPPER */
+    /* Real-Time Syntax Highlighting Editor Wrapper */
     .editor-wrapper {
       position: relative;
       height: 480px;
       background: var(--bg-editor);
     }
     
-    /* Strict font and rendering alignment rules */
     .highlight-layer, textarea.code-editor {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       font-family: 'Consolas', 'Courier New', Courier, monospace;
       font-size: 13px;
-      line-height: 19px; /* Fixed pixel line-height prevents subpixel drift */
+      line-height: 19px;
       padding: 12px;
       tab-size: 4;
       white-space: pre;
@@ -134,8 +133,6 @@
       border: 0px solid transparent;
       outline: none;
       box-sizing: border-box;
-      
-      /* Force identical text metrics */
       letter-spacing: 0px;
       word-spacing: 0px;
       font-variant-ligatures: none;
@@ -143,7 +140,6 @@
       -webkit-font-smoothing: antialiased;
     }
     
-    /* Highlight div sits behind */
     .highlight-layer {
       z-index: 1;
       color: var(--syn-default);
@@ -151,7 +147,6 @@
       pointer-events: none;
     }
 
-    /* Textarea sits on front, transparent text but visible cursor */
     textarea.code-editor {
       z-index: 2;
       color: transparent;
@@ -196,11 +191,11 @@
       <form id="loginForm">
         <div class="form-group">
           <label>Username</label>
-          <input type="text" id="usernameInput" placeholder="qwertyPi / WongChun1234 / firewater" required>
+          <input type="text" id="usernameInput" placeholder="Enter username" required>
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" id="passwordInput" placeholder="Password" required>
+          <input type="password" id="passwordInput" placeholder="Enter password" required>
         </div>
         <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">Login</button>
         <div id="loginErrorMsg" style="color: #f85149; font-size: 0.8rem; margin-top: 10px; text-align: center;" class="hidden">Invalid credentials</div>
@@ -246,7 +241,7 @@
 
         <div class="card">
           <h3 style="margin-bottom: 16px; color: #ffffff;">Code Review Files</h3>
-          <div id="fileListContainer"></div>
+          <div id="fileListContainer">Loading repository menu...</div>
         </div>
       </div>
 
@@ -294,12 +289,13 @@
   </div>
 
   <script>
-    const EXPECTED_HASH = "5a4a5f5e59404255030107010301";
+    // Cryptographic SHA-256 hash for 'password123456'
+    const DEFAULT_HASH = "184a6c8672049e2dd6d59b4869811b7f03551d0d97bfec3fa1065600ffbe79cf";
 
     const ACCOUNTS = {
-      'qwertypi': { name: 'qwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false },
-      'wongchun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false },
-      'firewater': { name: 'firewater', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true }
+      'qwertypi': { name: 'QwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: DEFAULT_HASH },
+      'wongchun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: DEFAULT_HASH },
+      'firewater': { name: 'firewater', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true, hash: DEFAULT_HASH }
     };
 
     let currentUser = null;
@@ -336,33 +332,35 @@
       return result;
     }
 
-    function hashPassword(str) {
-      let res = "";
-      for (let i = 0; i < str.length; i++) {
-        const val = str.charCodeAt(i) ^ (i + 42);
-        res += val.toString(16).padStart(2, "0");
-      }
-      return res;
+    // One-way SHA-256 Hashing via Web Crypto API
+    async function hashPassword(str) {
+      const msgBuffer = new TextEncoder().encode(str);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     // Login logic
-    document.getElementById('loginForm').addEventListener('submit', function(e) {
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const uInput = document.getElementById('usernameInput').value.trim().toLowerCase();
       const pInput = document.getElementById('passwordInput').value.trim();
 
       const account = ACCOUNTS[uInput];
-      if (account && hashPassword(pInput) === EXPECTED_HASH) {
-        currentUser = account;
-        document.getElementById('currentUserSpan').innerText = currentUser.name;
-        document.getElementById('userRoleBadge').innerText = currentUser.role;
+      if (account) {
+        const hashedInput = await hashPassword(pInput);
+        if (hashedInput === account.hash) {
+          currentUser = account;
+          document.getElementById('currentUserSpan').innerText = currentUser.name;
+          document.getElementById('userRoleBadge').innerText = currentUser.role;
 
-        document.getElementById('loginOverlay').classList.add('hidden');
-        document.getElementById('appContent').classList.remove('hidden');
+          document.getElementById('loginOverlay').classList.add('hidden');
+          document.getElementById('appContent').classList.remove('hidden');
 
-        document.getElementById('uploadSection').classList.toggle('hidden', !currentUser.canUpload);
-        showMenu();
-        return;
+          document.getElementById('uploadSection').classList.toggle('hidden', !currentUser.canUpload);
+          showMenu();
+          return;
+        }
       }
       document.getElementById('loginErrorMsg').classList.remove('hidden');
     });
@@ -375,29 +373,35 @@
       document.getElementById('appContent').classList.add('hidden');
     }
 
-    function showMenu() {
+    async function showMenu() {
       document.getElementById('menuView').classList.remove('hidden');
       document.getElementById('editorView').classList.add('hidden');
+      await syncMenuFromRepo();
       renderFileList();
     }
 
-    // LocalStorage Data Management
+    // Storage and Repository Fetching Logic
     function getStoredFiles() {
       const stored = localStorage.getItem('cpp_project_files');
-      if (!stored) {
-        const sampleFiles = [{
-          id: 101, name: 'BinarySearch.cpp', tag: 'Algorithms',
-          originalCode: '#include <iostream>\nusing namespace std;\n\n// Binary search implementation\nint binarySearch(int arr[], int l, int r, int x) {\n    while (l <= r) {\n        int m = l + (r - l) / 2;\n        if (arr[m] == x) return m;\n        if (arr[m] < x) l = m + 1;\n        else r = m - 1;\n    }\n    return -1;\n}',
-          modifiedCode: '#include <iostream>\nusing namespace std;\n\n// Optimized binary search implementation\nint binarySearch(int arr[], int l, int r, int x) {\n    while (l <= r) {\n        int m = l + (r - l) / 2;\n        if (arr[m] == x) return m;\n        if (arr[m] < x) {\n            l = m + 1;\n        } else {\n            r = m - 1;\n        }\n    }\n    return -1;\n}',
-          isMarked: false, isRead: false
-        }];
-        localStorage.setItem('cpp_project_files', JSON.stringify(sampleFiles));
-        return sampleFiles;
-      }
-      return JSON.parse(stored);
+      return stored ? JSON.parse(stored) : [];
     }
 
-    function saveStoredFiles(files) { localStorage.setItem('cpp_project_files', JSON.stringify(files)); }
+    function saveStoredFiles(files) { 
+      localStorage.setItem('cpp_project_files', JSON.stringify(files)); 
+    }
+
+    // Sync menu file index from code/list.json
+    async function syncMenuFromRepo() {
+      try {
+        const response = await fetch('code/list.json');
+        if (response.ok) {
+          const repoFiles = await response.json();
+          saveStoredFiles(repoFiles);
+        }
+      } catch (err) {
+        console.warn("Could not fetch code/list.json, falling back to local cached files.", err);
+      }
+    }
 
     // Upload & Delete
     document.getElementById('fileInput').addEventListener('change', function(e) {
@@ -414,11 +418,15 @@
       if (!code) return alert('Please input code.');
       
       const files = getStoredFiles();
+      const newId = Date.now();
       files.push({
-        id: Date.now(),
+        id: newId,
         name: document.getElementById('codeNameInput').value.trim(),
         tag: document.getElementById('codeTagInput').value.trim(),
-        originalCode: code, modifiedCode: code, isMarked: false, isRead: false
+        originalCode: code, 
+        modifiedCode: code, 
+        isMarked: false, 
+        isRead: false
       });
       saveStoredFiles(files);
       this.reset();
@@ -428,7 +436,7 @@
     function deleteFile(id, event) {
       if (event) event.stopPropagation();
       if (confirm("Are you sure you want to delete this file?")) {
-        saveStoredFiles(getStoredFiles().filter(f => f.id !== id));
+        saveStoredFiles(getStoredFiles().filter(f => String(f.id) !== String(id)));
         renderFileList();
       }
     }
@@ -438,7 +446,7 @@
     function renderFileList() {
       const files = getStoredFiles();
       const container = document.getElementById('fileListContainer');
-      if (!files.length) return container.innerHTML = '<p style="color: var(--text-muted);">No files uploaded yet.</p>';
+      if (!files.length) return container.innerHTML = '<p style="color: var(--text-muted);">No files uploaded or found in code/ directory.</p>';
 
       files.sort((a, b) => currentUser.role === 'Marker' 
         ? (a.isMarked === b.isMarked ? 0 : a.isMarked ? 1 : -1) 
@@ -454,22 +462,40 @@
             ${f.isRead ? '<span class="status-tag tag-read">Read</span>' : ''}
           </div>
           <div style="display: flex; gap: 8px;">
-            <button class="btn btn-secondary" onclick="openFileEditor(${f.id})">Open & View</button>
-            ${currentUser.canUpload ? `<button class="btn btn-danger" onclick="deleteFile(${f.id}, event)">Delete</button>` : ''}
+            <button class="btn btn-secondary" onclick="openFileEditor('${f.id}')">Open & View</button>
+            ${currentUser.canUpload ? `<button class="btn btn-danger" onclick="deleteFile('${f.id}', event)">Delete</button>` : ''}
           </div>
         </div>
       `).join('');
     }
 
-    // Open File
-    function openFileEditor(id) {
-      const file = getStoredFiles().find(f => f.id === id);
+    // Open File & Fetch Code On-Demand
+    async function openFileEditor(id) {
+      const files = getStoredFiles();
+      const file = files.find(f => String(f.id) === String(id));
       if (!file) return;
 
       activeFileId = id;
       document.getElementById('activeFileTitle').innerText = file.name;
       document.getElementById('activeFileTag').innerText = file.tag;
-      document.getElementById('leftCodeContainer').innerHTML = highlightCpp(file.originalCode);
+
+      let origCode = file.originalCode || "";
+      let modCode = file.modifiedCode || "";
+
+      if (file.originalPath && file.modifiedPath) {
+        try {
+          const [origRes, modRes] = await Promise.all([
+            fetch(file.originalPath),
+            fetch(file.modifiedPath)
+          ]);
+          if (origRes.ok) origCode = await origRes.text();
+          if (modRes.ok) modCode = await modRes.text();
+        } catch (err) {
+          console.warn("Could not fetch file content from code/ folder, using local storage cache.", err);
+        }
+      }
+
+      document.getElementById('leftCodeContainer').innerHTML = highlightCpp(origCode);
 
       const editorWrap = document.getElementById('editorWrapper');
       const diffView = document.getElementById('rightDiffView');
@@ -480,7 +506,7 @@
         editorWrap.classList.remove('hidden');
         diffView.classList.add('hidden');
         
-        document.getElementById('rightCodeEditor').value = file.modifiedCode || file.originalCode;
+        document.getElementById('rightCodeEditor').value = modCode || origCode;
         syncEditorHighlighting();
 
         document.getElementById('saveEditsBtn').classList.remove('hidden');
@@ -497,14 +523,14 @@
         document.getElementById('markReadBtn').classList.remove('hidden');
         document.getElementById('deleteActiveFileBtn').classList.remove('hidden');
 
-        renderComparisonResult(file.originalCode, file.modifiedCode);
+        renderComparisonResult(origCode, modCode);
       }
 
       document.getElementById('menuView').classList.add('hidden');
       document.getElementById('editorView').classList.remove('hidden');
     }
 
-    // --- REAL-TIME EDITOR SYNC LOGIC ---
+    // Real-Time Editor Syntax Sync
     const editorTextarea = document.getElementById('rightCodeEditor');
     const highlightLayer = document.getElementById('highlightLayer');
 
@@ -513,10 +539,8 @@
       highlightLayer.innerHTML = highlightCpp(code) + (code.endsWith('\n') ? ' ' : '');
     }
 
-    // Sync content on type
     editorTextarea.addEventListener('input', syncEditorHighlighting);
     
-    // Sync scrolling overlay perfectly
     editorTextarea.addEventListener('scroll', function() {
       highlightLayer.scrollTop = this.scrollTop;
       highlightLayer.scrollLeft = this.scrollLeft;
@@ -595,21 +619,21 @@
     }
 
     function saveEdits() {
-      const files = getStoredFiles(), file = files.find(f => f.id === activeFileId);
+      const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
       if (file) {
         file.modifiedCode = document.getElementById('rightCodeEditor').value;
         saveStoredFiles(files);
-        alert('Edits saved successfully!');
+        alert('Edits saved locally!');
       }
     }
 
     function markAsDone() {
-      const files = getStoredFiles(), file = files.find(f => f.id === activeFileId);
+      const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
       if (file) { file.isMarked = true; saveStoredFiles(files); alert('File marked as done!'); showMenu(); }
     }
 
     function markAsRead() {
-      const files = getStoredFiles(), file = files.find(f => f.id === activeFileId);
+      const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
       if (file) { file.isRead = true; saveStoredFiles(files); alert('File marked as read!'); showMenu(); }
     }
   </script>
