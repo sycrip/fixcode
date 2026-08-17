@@ -276,7 +276,7 @@
             
             <!-- Real-Time Editor Wrapper (For Markers) -->
             <div id="editorWrapper" class="editor-wrapper hidden">
-              <div id="highlightLayer" class="highlight-layer" aria-hidden="true"></div>
+              <div id="highlightLayer" class="highlightLayer" aria-hidden="true"></div>
               <textarea id="rightCodeEditor" class="code-editor" spellcheck="false"></textarea>
             </div>
 
@@ -288,396 +288,398 @@
     </main>
   </div>
 
+  <script>
+  // Cryptographic SHA-256 hash for authentication
+  const DEFAULT_HASH = "184a6c8672049e2dd6d59b4869811b7f03551d0d97bfec3fa1065600ffbe79cf";
+
+  // Account database with exact case-sensitive keys
+  const ACCOUNTS = {
+    'QwertyPi': { name: 'QwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: DEFAULT_HASH },
+    'WongChun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: DEFAULT_HASH },
+    'firewater': { name: 'firewater', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true, hash: DEFAULT_HASH }
+  };
+
+  let currentUser = null;
+  let activeFileId = null;
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // VS Code Dark+ C++ Syntax Highlighter Tokenizer
+  function highlightCpp(code) {
+    if (!code) return "";
+    const tokenRegex = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|<[a-zA-Z0-9_.\/]+>)|(#[a-zA-Z_]\w*)|(\b(?:return|if|else|while|for|do|break|continue|switch|case|default|try|catch|throw)\b)|(\b(?:int|char|float|double|void|bool|long|short|unsigned|signed|auto|const|static|struct|class|enum|typename|template|virtual|override|final|public|private|protected|namespace|using|std|nullptr|true|false)\b)|(\b\d+(?:\.\d+)?\b)|(\b[a-zA-Z_]\w*)(?=\s*\()/g;
+
+    let result = "";
+    let lastIndex = 0;
+    let match;
+
+    while ((match = tokenRegex.exec(code)) !== null) {
+      result += escapeHtml(code.slice(lastIndex, match.index));
+      const [fullMatch, comment, str, prep, control, keyword, number, func] = match;
+
+      if (comment) result += `<span class="syn-comment">${escapeHtml(comment)}</span>`;
+      else if (str) result += `<span class="syn-string">${escapeHtml(str)}</span>`;
+      else if (prep || control) result += `<span class="syn-control">${escapeHtml(prep || control)}</span>`;
+      else if (keyword) result += `<span class="syn-keyword">${escapeHtml(keyword)}</span>`;
+      else if (number) result += `<span class="syn-number">${escapeHtml(number)}</span>`;
+      else if (func) result += `<span class="syn-func">${escapeHtml(func)}</span>`;
+      
+      lastIndex = tokenRegex.lastIndex;
+    }
+    result += escapeHtml(code.slice(lastIndex));
+    return result;
+  }
+
   // Pure JavaScript SHA-256 Implementation (Works on file://, http, and https)
-    function sha256(ascii) {
-      function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
-      var mathPow = Math.pow, maxWord = mathPow(2, 32), lengthProperty = 'length', i, j, result = '';
-      var words = [], asciiLength = ascii[lengthProperty] * 8;
-      var hash = [], k = [], primeCounter = 0, isCandidate = {};
-      for (var candidate = 2; primeCounter < 64; candidate++) {
-        if (!isCandidate[candidate]) {
-          for (i = 0; i < 300; i += candidate) isCandidate[i] = true;
-          if (primeCounter < 8) hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
-          k[primeCounter] = (mathPow(candidate, 1/3) * maxWord) | 0;
-          primeCounter++;
-        }
+  function sha256(ascii) {
+    function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
+    var mathPow = Math.pow, maxWord = mathPow(2, 32), lengthProperty = 'length', i, j, result = '';
+    var words = [], asciiLength = ascii[lengthProperty] * 8;
+    var hash = [], k = [], primeCounter = 0, isCandidate = {};
+    for (var candidate = 2; primeCounter < 64; candidate++) {
+      if (!isCandidate[candidate]) {
+        for (i = 0; i < 300; i += candidate) isCandidate[i] = true;
+        if (primeCounter < 8) hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
+        k[primeCounter] = (mathPow(candidate, 1/3) * maxWord) | 0;
+        primeCounter++;
       }
-      ascii += '\x80';
-      while (ascii[lengthProperty] % 64 - 56) ascii += '\x00';
-      for (i = 0; i < ascii[lengthProperty]; i++) {
-        j = ascii.charCodeAt(i);
-        if (j >> 8) return;
-        words[i >> 2] |= j << ((3 - i % 4) * 8);
-      }
-      words[words[lengthProperty]] = ((asciiLength / maxWord) | 0);
-      words[words[lengthProperty]] = (asciiLength);
-      for (j = 0; j < words[lengthProperty];) {
-        var w = words.slice(j, j += 16), oldHash = hash;
-        hash = hash.slice(0, 8);
-        for (i = 0; i < 64; i++) {
-          var w15 = w[i - 15], w2 = w[i - 2];
-          var a = hash[0], e = hash[4];
-          var temp1 = hash[7]
-            + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
-            + ((e & hash[5]) ^ ((~e) & hash[6]))
-            + k[i]
-            + (w[i] = (i < 16) ? w[i] : (
-                w[i - 16]
-                + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
-                + w[i - 7]
-                + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
-              ) | 0
-            );
-          var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
-            + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
-          hash = [(temp1 + temp2) | 0].concat(hash);
-          hash[4] = (hash[4] + temp1) | 0;
-        }
-        for (i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
-      }
-      for (i = 0; i < 8; i++) {
-        for (j = 3; j >= 0; j--) {
-          var b = (hash[i] >> (j * 8)) & 255;
-          result += (b < 16 ? '0' : '') + b.toString(16);
-        }
-      }
-      return result;
     }
-  
-    // SHA-256 hash for authentication
-    const DEFAULT_HASH = "184a6c8672049e2dd6d59b4869811b7f03551d0d97bfec3fa1065600ffbe79cf";
-  
-    // Account database (Case-sensitive user keys)
-    const ACCOUNTS = {
-      'QwertyPi': { name: 'QwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: DEFAULT_HASH },
-      'WongChun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: DEFAULT_HASH },
-      'firewater': { name: 'firewater', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true, hash: DEFAULT_HASH }
-    };
-  
-    let currentUser = null;
-    let activeFileId = null;
-  
-    function escapeHtml(str) {
-      if (!str) return "";
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    ascii += '\x80';
+    while (ascii[lengthProperty] % 64 - 56) ascii += '\x00';
+    for (i = 0; i < ascii[lengthProperty]; i++) {
+      j = ascii.charCodeAt(i);
+      if (j >> 8) return;
+      words[i >> 2] |= j << ((3 - i % 4) * 8);
     }
-  
-    // Synchronous Login Handler
-    document.getElementById('loginForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const uInput = document.getElementById('usernameInput').value.trim();
-      const pInput = document.getElementById('passwordInput').value.trim();
-  
-      const account = ACCOUNTS[uInput]; // Exact case match
-      if (account) {
-        const computedHash = sha256(pInput);
-        
-        // Validates hashed result or fallback matching
-        if (computedHash === account.hash || pInput === "password123456") {
-          currentUser = account;
-          document.getElementById('currentUserSpan').innerText = currentUser.name;
-          document.getElementById('userRoleBadge').innerText = currentUser.role;
-  
-          document.getElementById('loginOverlay').classList.add('hidden');
-          document.getElementById('appContent').classList.remove('hidden');
-  
-          document.getElementById('uploadSection').classList.toggle('hidden', !currentUser.canUpload);
-          showMenu();
-          return;
-        }
+    words[words[lengthProperty]] = ((asciiLength / maxWord) | 0);
+    words[words[lengthProperty]] = (asciiLength);
+    for (j = 0; j < words[lengthProperty];) {
+      var w = words.slice(j, j += 16), oldHash = hash;
+      hash = hash.slice(0, 8);
+      for (i = 0; i < 64; i++) {
+        var w15 = w[i - 15], w2 = w[i - 2];
+        var a = hash[0], e = hash[4];
+        var temp1 = hash[7]
+          + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
+          + ((e & hash[5]) ^ ((~e) & hash[6]))
+          + k[i]
+          + (w[i] = (i < 16) ? w[i] : (
+              w[i - 16]
+              + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
+              + w[i - 7]
+              + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
+            ) | 0
+          );
+        var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
+          + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+        hash = [(temp1 + temp2) | 0].concat(hash);
+        hash[4] = (hash[4] + temp1) | 0;
       }
+      for (i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
+    }
+    for (i = 0; i < 8; i++) {
+      for (j = 3; j >= 0; j--) {
+        var b = (hash[i] >> (j * 8)) & 255;
+        result += (b < 16 ? '0' : '') + b.toString(16);
+      }
+    }
+    return result;
+  }
+
+  // Synchronous Login Handler
+  document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const uInput = document.getElementById('usernameInput').value.trim();
+    const pInput = document.getElementById('passwordInput').value.trim();
+
+    const account = ACCOUNTS[uInput]; // Exact case match
+    if (account) {
+      const computedHash = sha256(pInput);
       
-      document.getElementById('loginErrorMsg').classList.remove('hidden');
-    });
-  
-    function logout() {
-      currentUser = null;
-      document.getElementById('loginForm').reset();
-      document.getElementById('loginErrorMsg').classList.add('hidden');
-      document.getElementById('loginOverlay').classList.remove('hidden');
-      document.getElementById('appContent').classList.add('hidden');
-    }
-  
-    async function showMenu() {
-      document.getElementById('menuView').classList.remove('hidden');
-      document.getElementById('editorView').classList.add('hidden');
-      await syncMenuFromRepo();
-      renderFileList();
-    }
-  
-    function getStoredFiles() {
-      const stored = localStorage.getItem('cpp_project_files');
-      return stored ? JSON.parse(stored) : [];
-    }
-  
-    function saveStoredFiles(files) { 
-      localStorage.setItem('cpp_project_files', JSON.stringify(files)); 
-    }
-  
-    async function syncMenuFromRepo() {
-      try {
-        const response = await fetch('code/list.json');
-        if (response.ok) {
-          const repoFiles = await response.json();
-          saveStoredFiles(repoFiles);
-        }
-      } catch (err) {
-        console.warn("Could not fetch code/list.json, falling back to local cached files.", err);
-      }
-    }
-  
-    // VS Code C++ Syntax Highlighter Tokenizer
-    function highlightCpp(code) {
-      if (!code) return "";
-      const tokenRegex = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|<[a-zA-Z0-9_.\/]+>)|(#[a-zA-Z_]\w*)|(\b(?:return|if|else|while|for|do|break|continue|switch|case|default|try|catch|throw)\b)|(\b(?:int|char|float|double|void|bool|long|short|unsigned|signed|auto|const|static|struct|class|enum|typename|template|virtual|override|final|public|private|protected|namespace|using|std|nullptr|true|false)\b)|(\b\d+(?:\.\d+)?\b)|(\b[a-zA-Z_]\w*)(?=\s*\()/g;
-  
-      let result = "";
-      let lastIndex = 0;
-      let match;
-  
-      while ((match = tokenRegex.exec(code)) !== null) {
-        result += escapeHtml(code.slice(lastIndex, match.index));
-        const [fullMatch, comment, str, prep, control, keyword, number, func] = match;
-  
-        if (comment) result += `<span class="syn-comment">${escapeHtml(comment)}</span>`;
-        else if (str) result += `<span class="syn-string">${escapeHtml(str)}</span>`;
-        else if (prep || control) result += `<span class="syn-control">${escapeHtml(prep || control)}</span>`;
-        else if (keyword) result += `<span class="syn-keyword">${escapeHtml(keyword)}</span>`;
-        else if (number) result += `<span class="syn-number">${escapeHtml(number)}</span>`;
-        else if (func) result += `<span class="syn-func">${escapeHtml(func)}</span>`;
-        
-        lastIndex = tokenRegex.lastIndex;
-      }
-      result += escapeHtml(code.slice(lastIndex));
-      return result;
-    }
-  
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-      if (e.target.files[0]) {
-        const reader = new FileReader();
-        reader.onload = evt => document.getElementById('rawCodeInput').value = evt.target.result;
-        reader.readAsText(e.target.files[0]);
-      }
-    });
-  
-    document.getElementById('uploadForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const code = document.getElementById('rawCodeInput').value;
-      if (!code) return alert('Please input code.');
       
-      const files = getStoredFiles();
-      const newId = Date.now();
-      files.push({
-        id: newId,
-        name: document.getElementById('codeNameInput').value.trim(),
-        tag: document.getElementById('codeTagInput').value.trim(),
-        originalCode: code, 
-        modifiedCode: code, 
-        isMarked: false, 
-        isRead: false
-      });
-      saveStoredFiles(files);
-      this.reset();
-      renderFileList();
-    });
-  
-    function deleteFile(id, event) {
-      if (event) event.stopPropagation();
-      if (confirm("Are you sure you want to delete this file?")) {
-        saveStoredFiles(getStoredFiles().filter(f => String(f.id) !== String(id)));
-        renderFileList();
+      if (computedHash === account.hash) {
+        currentUser = account;
+        document.getElementById('currentUserSpan').innerText = currentUser.name;
+        document.getElementById('userRoleBadge').innerText = currentUser.role;
+
+        document.getElementById('loginOverlay').classList.add('hidden');
+        document.getElementById('appContent').classList.remove('hidden');
+
+        document.getElementById('uploadSection').classList.toggle('hidden', !currentUser.canUpload);
+        showMenu();
+        return;
       }
     }
-    function deleteActiveFile() { if (activeFileId) { deleteFile(activeFileId); showMenu(); } }
-  
-    function renderFileList() {
-      const files = getStoredFiles();
-      const container = document.getElementById('fileListContainer');
-      if (!files.length) return container.innerHTML = '<p style="color: var(--text-muted);">No files uploaded or found in code/ directory.</p>';
-  
-      files.sort((a, b) => currentUser.role === 'Marker' 
-        ? (a.isMarked === b.isMarked ? 0 : a.isMarked ? 1 : -1) 
-        : ((a.isMarked && !a.isRead ? 1 : !a.isMarked ? 2 : 3) - (b.isMarked && !b.isRead ? 1 : !b.isMarked ? 2 : 3))
-      );
-  
-      container.innerHTML = files.map(f => `
-        <div class="file-item">
-          <div class="file-meta">
-            <strong style="color: #ffffff;">${escapeHtml(f.name)}</strong>
-            <span class="file-tag-pill">${escapeHtml(f.tag)}</span>
-            ${f.isMarked ? '<span class="status-tag tag-marked">Marked as Done</span>' : '<span class="status-tag tag-pending">Pending</span>'}
-            ${f.isRead ? '<span class="status-tag tag-read">Read</span>' : ''}
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn btn-secondary" onclick="openFileEditor('${f.id}')">Open & View</button>
-            ${currentUser.canUpload ? `<button class="btn btn-danger" onclick="deleteFile('${f.id}', event)">Delete</button>` : ''}
-          </div>
-        </div>
-      `).join('');
-    }
-  
-    async function openFileEditor(id) {
-      const files = getStoredFiles();
-      const file = files.find(f => String(f.id) === String(id));
-      if (!file) return;
-  
-      activeFileId = id;
-      document.getElementById('activeFileTitle').innerText = file.name;
-      document.getElementById('activeFileTag').innerText = file.tag;
-  
-      let origCode = file.originalCode || "";
-      let modCode = file.modifiedCode || "";
-  
-      if (file.originalPath && file.modifiedPath) {
-        try {
-          const [origRes, modRes] = await Promise.all([
-            fetch(file.originalPath),
-            fetch(file.modifiedPath)
-          ]);
-          if (origRes.ok) origCode = await origRes.text();
-          if (modRes.ok) modCode = await modRes.text();
-        } catch (err) {
-          console.warn("Could not fetch file content from code/ folder, using local storage cache.", err);
-        }
-      }
-  
-      document.getElementById('leftCodeContainer').innerHTML = highlightCpp(origCode);
-  
-      const editorWrap = document.getElementById('editorWrapper');
-      const diffView = document.getElementById('rightDiffView');
-      const header = document.getElementById('rightPaneHeader');
-  
-      if (currentUser.canMark) {
-        header.innerText = "EDIT CODE";
-        editorWrap.classList.remove('hidden');
-        diffView.classList.add('hidden');
-        
-        document.getElementById('rightCodeEditor').value = modCode || origCode;
-        syncEditorHighlighting();
-  
-        document.getElementById('saveEditsBtn').classList.remove('hidden');
-        document.getElementById('markDoneBtn').classList.remove('hidden');
-        document.getElementById('markReadBtn').classList.add('hidden');
-        document.getElementById('deleteActiveFileBtn').classList.add('hidden');
-      } else {
-        header.innerText = "CODE COMPARISON RESULT";
-        editorWrap.classList.add('hidden');
-        diffView.classList.remove('hidden');
-  
-        document.getElementById('saveEditsBtn').classList.add('hidden');
-        document.getElementById('markDoneBtn').classList.add('hidden');
-        document.getElementById('markReadBtn').classList.remove('hidden');
-        document.getElementById('deleteActiveFileBtn').classList.remove('hidden');
-  
-        renderComparisonResult(origCode, modCode);
-      }
-  
-      document.getElementById('menuView').classList.add('hidden');
-      document.getElementById('editorView').classList.remove('hidden');
-    }
-  
-    const editorTextarea = document.getElementById('rightCodeEditor');
-    const highlightLayer = document.getElementById('highlightLayer');
-  
-    function syncEditorHighlighting() {
-      const code = editorTextarea.value;
-      highlightLayer.innerHTML = highlightCpp(code) + (code.endsWith('\n') ? ' ' : '');
-    }
-  
-    editorTextarea.addEventListener('input', syncEditorHighlighting);
     
-    editorTextarea.addEventListener('scroll', function() {
-      highlightLayer.scrollTop = this.scrollTop;
-      highlightLayer.scrollLeft = this.scrollLeft;
+    document.getElementById('loginErrorMsg').classList.remove('hidden');
+  });
+
+  function logout() {
+    currentUser = null;
+    document.getElementById('loginForm').reset();
+    document.getElementById('loginErrorMsg').classList.add('hidden');
+    document.getElementById('loginOverlay').classList.remove('hidden');
+    document.getElementById('appContent').classList.add('hidden');
+  }
+
+  async function showMenu() {
+    document.getElementById('menuView').classList.remove('hidden');
+    document.getElementById('editorView').classList.add('hidden');
+    await syncMenuFromRepo();
+    renderFileList();
+  }
+
+  function getStoredFiles() {
+    const stored = localStorage.getItem('cpp_project_files');
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  function saveStoredFiles(files) { 
+    localStorage.setItem('cpp_project_files', JSON.stringify(files)); 
+  }
+
+  async function syncMenuFromRepo() {
+    try {
+      const response = await fetch('code/list.json');
+      if (response.ok) {
+        const repoFiles = await response.json();
+        saveStoredFiles(repoFiles);
+      }
+    } catch (err) {
+      console.warn("Could not fetch code/list.json, falling back to local cached files.", err);
+    }
+  }
+
+  document.getElementById('fileInput').addEventListener('change', function(e) {
+    if (e.target.files[0]) {
+      const reader = new FileReader();
+      reader.onload = evt => document.getElementById('rawCodeInput').value = evt.target.result;
+      reader.readAsText(e.target.files[0]);
+    }
+  });
+
+  document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const code = document.getElementById('rawCodeInput').value;
+    if (!code) return alert('Please input code.');
+    
+    const files = getStoredFiles();
+    const newId = Date.now();
+    files.push({
+      id: newId,
+      name: document.getElementById('codeNameInput').value.trim(),
+      tag: document.getElementById('codeTagInput').value.trim(),
+      originalCode: code, 
+      modifiedCode: code, 
+      isMarked: false, 
+      isRead: false
     });
-  
-    editorTextarea.addEventListener('keydown', function(e) {
-      const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+    saveStoredFiles(files);
+    this.reset();
+    renderFileList();
+  });
+
+  function deleteFile(id, event) {
+    if (event) event.stopPropagation();
+    if (confirm("Are you sure you want to delete this file?")) {
+      saveStoredFiles(getStoredFiles().filter(f => String(f.id) !== String(id)));
+      renderFileList();
+    }
+  }
+  function deleteActiveFile() { if (activeFileId) { deleteFile(activeFileId); showMenu(); } }
+
+  function renderFileList() {
+    const files = getStoredFiles();
+    const container = document.getElementById('fileListContainer');
+    if (!files.length) return container.innerHTML = '<p style="color: var(--text-muted);">No files uploaded or found in code/ directory.</p>';
+
+    files.sort((a, b) => currentUser.role === 'Marker' 
+      ? (a.isMarked === b.isMarked ? 0 : a.isMarked ? 1 : -1) 
+      : ((a.isMarked && !a.isRead ? 1 : !a.isMarked ? 2 : 3) - (b.isMarked && !b.isRead ? 1 : !b.isMarked ? 2 : 3))
+    );
+
+    container.innerHTML = files.map(f => `
+      <div class="file-item">
+        <div class="file-meta">
+          <strong style="color: #ffffff;">${escapeHtml(f.name)}</strong>
+          <span class="file-tag-pill">${escapeHtml(f.tag)}</span>
+          ${f.isMarked ? '<span class="status-tag tag-marked">Marked as Done</span>' : '<span class="status-tag tag-pending">Pending</span>'}
+          ${f.isRead ? '<span class="status-tag tag-read">Read</span>' : ''}
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" onclick="openFileEditor('${f.id}')">Open & View</button>
+          ${currentUser.canUpload ? `<button class="btn btn-danger" onclick="deleteFile('${f.id}', event)">Delete</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function openFileEditor(id) {
+    const files = getStoredFiles();
+    const file = files.find(f => String(f.id) === String(id));
+    if (!file) return;
+
+    activeFileId = id;
+    document.getElementById('activeFileTitle').innerText = file.name;
+    document.getElementById('activeFileTag').innerText = file.tag;
+
+    let origCode = file.originalCode || "";
+    let modCode = file.modifiedCode || "";
+
+    if (file.originalPath && file.modifiedPath) {
+      try {
+        const [origRes, modRes] = await Promise.all([
+          fetch(file.originalPath),
+          fetch(file.modifiedPath)
+        ]);
+        if (origRes.ok) origCode = await origRes.text();
+        if (modRes.ok) modCode = await modRes.text();
+      } catch (err) {
+        console.warn("Could not fetch file content from code/ folder, using local storage cache.", err);
+      }
+    }
+
+    document.getElementById('leftCodeContainer').innerHTML = highlightCpp(origCode);
+
+    const editorWrap = document.getElementById('editorWrapper');
+    const diffView = document.getElementById('rightDiffView');
+    const header = document.getElementById('rightPaneHeader');
+
+    if (currentUser.canMark) {
+      header.innerText = "EDIT CODE";
+      editorWrap.classList.remove('hidden');
+      diffView.classList.add('hidden');
       
-      if (pairs[e.key]) {
-        e.preventDefault();
-        const start = this.selectionStart, end = this.selectionEnd, val = this.value;
-        this.value = val.substring(0, start) + e.key + pairs[e.key] + val.substring(end);
-        this.selectionStart = this.selectionEnd = start + 1;
-        syncEditorHighlighting();
-        return;
-      }
-  
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const start = this.selectionStart, end = this.selectionEnd;
-        this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
-        this.selectionStart = this.selectionEnd = start + 4;
-        syncEditorHighlighting();
-        return;
-      }
-  
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const start = this.selectionStart, val = this.value;
-        const currentLine = val.substring(val.lastIndexOf('\n', start - 1) + 1, start);
-        const baseIndent = (currentLine.match(/^\s*/) || [''])[0];
-  
-        if (val[start - 1] === '{' && val[start] === '}') {
-          const innerIndent = baseIndent + '    ';
-          this.value = val.substring(0, start) + '\n' + innerIndent + '\n' + baseIndent + val.substring(start);
-          this.selectionStart = this.selectionEnd = start + 1 + innerIndent.length;
-        } else {
-          const indent = baseIndent + (currentLine.trim().endsWith('{') ? '    ' : '');
-          this.value = val.substring(0, start) + '\n' + indent + val.substring(start);
-          this.selectionStart = this.selectionEnd = start + 1 + indent.length;
-        }
-        syncEditorHighlighting();
-      }
-    });
-  
-    function computeLineLCS(origText, modText) {
-      const origLines = origText.split('\n'), modLines = modText.split('\n');
-      const dp = Array.from({ length: origLines.length + 1 }, () => new Int32Array(modLines.length + 1));
-  
-      for (let i = 0; i < origLines.length; i++) {
-        for (let j = 0; j < modLines.length; j++) {
-          dp[i + 1][j + 1] = origLines[i] === modLines[j] ? dp[i][j] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
-        }
-      }
-  
-      let i = origLines.length, j = modLines.length, diff = [];
-      while (i > 0 || j > 0) {
-        if (i > 0 && j > 0 && origLines[i - 1] === modLines[j - 1]) {
-          diff.push({ type: 'equal', value: origLines[i - 1] }); i--; j--;
-        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-          diff.push({ type: 'add', value: modLines[j - 1] }); j--;
-        } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
-          diff.push({ type: 'delete', value: origLines[i - 1] }); i--;
-        }
-      }
-      return diff.reverse();
+      document.getElementById('rightCodeEditor').value = modCode || origCode;
+      syncEditorHighlighting();
+
+      document.getElementById('saveEditsBtn').classList.remove('hidden');
+      document.getElementById('markDoneBtn').classList.remove('hidden');
+      document.getElementById('markReadBtn').classList.add('hidden');
+      document.getElementById('deleteActiveFileBtn').classList.add('hidden');
+    } else {
+      header.innerText = "CODE COMPARISON RESULT";
+      editorWrap.classList.add('hidden');
+      diffView.classList.remove('hidden');
+
+      document.getElementById('saveEditsBtn').classList.add('hidden');
+      document.getElementById('markDoneBtn').classList.add('hidden');
+      document.getElementById('markReadBtn').classList.remove('hidden');
+      document.getElementById('deleteActiveFileBtn').classList.remove('hidden');
+
+      renderComparisonResult(origCode, modCode);
     }
+
+    document.getElementById('menuView').classList.add('hidden');
+    document.getElementById('editorView').classList.remove('hidden');
+  }
+
+  const editorTextarea = document.getElementById('rightCodeEditor');
+  const highlightLayer = document.getElementById('highlightLayer');
+
+  function syncEditorHighlighting() {
+    const code = editorTextarea.value;
+    highlightLayer.innerHTML = highlightCpp(code) + (code.endsWith('\n') ? ' ' : '');
+  }
+
+  editorTextarea.addEventListener('input', syncEditorHighlighting);
   
-    function renderComparisonResult(origText, modText) {
-      document.getElementById('rightDiffView').innerHTML = computeLineLCS(origText, modText).map(chunk => {
-        const hl = highlightCpp(chunk.value) || '&nbsp;';
-        return `<div class="diff-row diff-${chunk.type === 'delete' ? 'del' : chunk.type === 'add' ? 'add' : 'equal'}">${hl}</div>`;
-      }).join('');
+  editorTextarea.addEventListener('scroll', function() {
+    highlightLayer.scrollTop = this.scrollTop;
+    highlightLayer.scrollLeft = this.scrollLeft;
+  });
+
+  editorTextarea.addEventListener('keydown', function(e) {
+    const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+    
+    if (pairs[e.key]) {
+      e.preventDefault();
+      const start = this.selectionStart, end = this.selectionEnd, val = this.value;
+      this.value = val.substring(0, start) + e.key + pairs[e.key] + val.substring(end);
+      this.selectionStart = this.selectionEnd = start + 1;
+      syncEditorHighlighting();
+      return;
     }
-  
-    function saveEdits() {
-      const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
-      if (file) {
-        file.modifiedCode = document.getElementById('rightCodeEditor').value;
-        saveStoredFiles(files);
-        alert('Edits saved locally!');
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = this.selectionStart, end = this.selectionEnd;
+      this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+      this.selectionStart = this.selectionEnd = start + 4;
+      syncEditorHighlighting();
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const start = this.selectionStart, val = this.value;
+      const currentLine = val.substring(val.lastIndexOf('\n', start - 1) + 1, start);
+      const baseIndent = (currentLine.match(/^\s*/) || [''])[0];
+
+      if (val[start - 1] === '{' && val[start] === '}') {
+        const innerIndent = baseIndent + '    ';
+        this.value = val.substring(0, start) + '\n' + innerIndent + '\n' + baseIndent + val.substring(start);
+        this.selectionStart = this.selectionEnd = start + 1 + innerIndent.length;
+      } else {
+        const indent = baseIndent + (currentLine.trim().endsWith('{') ? '    ' : '');
+        this.value = val.substring(0, start) + '\n' + indent + val.substring(start);
+        this.selectionStart = this.selectionEnd = start + 1 + indent.length;
+      }
+      syncEditorHighlighting();
+    }
+  });
+
+  function computeLineLCS(origText, modText) {
+    const origLines = origText.split('\n'), modLines = modText.split('\n');
+    const dp = Array.from({ length: origLines.length + 1 }, () => new Int32Array(modLines.length + 1));
+
+    for (let i = 0; i < origLines.length; i++) {
+      for (let j = 0; j < modLines.length; j++) {
+        dp[i + 1][j + 1] = origLines[i] === modLines[j] ? dp[i][j] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
       }
     }
-  
-    function markAsDone() {
-      const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
-      if (file) { file.isMarked = true; saveStoredFiles(files); alert('File marked as done!'); showMenu(); }
+
+    let i = origLines.length, j = modLines.length, diff = [];
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && origLines[i - 1] === modLines[j - 1]) {
+        diff.push({ type: 'equal', value: origLines[i - 1] }); i--; j--;
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        diff.push({ type: 'add', value: modLines[j - 1] }); j--;
+      } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
+        diff.push({ type: 'delete', value: origLines[i - 1] }); i--;
+      }
     }
-  
-    function markAsRead() {
-      const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
-      if (file) { file.isRead = true; saveStoredFiles(files); alert('File marked as read!'); showMenu(); }
+    return diff.reverse();
+  }
+
+  function renderComparisonResult(origText, modText) {
+    document.getElementById('rightDiffView').innerHTML = computeLineLCS(origText, modText).map(chunk => {
+      const hl = highlightCpp(chunk.value) || '&nbsp;';
+      return `<div class="diff-row diff-${chunk.type === 'delete' ? 'del' : chunk.type === 'add' ? 'add' : 'equal'}">${hl}</div>`;
+    }).join('');
+  }
+
+  function saveEdits() {
+    const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
+    if (file) {
+      file.modifiedCode = document.getElementById('rightCodeEditor').value;
+      saveStoredFiles(files);
+      alert('Edits saved locally!');
     }
-      </body>
+  }
+
+  function markAsDone() {
+    const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
+    if (file) { file.isMarked = true; saveStoredFiles(files); alert('File marked as done!'); showMenu(); }
+  }
+
+  function markAsRead() {
+    const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
+    if (file) { file.isRead = true; saveStoredFiles(files); alert('File marked as read!'); showMenu(); }
+  }
+  </script>
+</body>
 </html>
