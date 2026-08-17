@@ -42,17 +42,17 @@
 
     .hidden { display: none !important; }
 
-    /* Login Modal */
-    #loginOverlay {
+    /* Modals */
+    .modal-overlay {
       position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
       display: flex; align-items: center; justify-content: center; z-index: 1000;
     }
-    .login-card {
+    .modal-card {
       background: var(--bg-card); border: 1px solid var(--border-color);
-      padding: 32px; border-radius: 6px; width: 100%; max-width: 380px;
+      padding: 32px; border-radius: 6px; width: 100%; max-width: 420px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     }
-    .login-card h2 { margin-bottom: 20px; font-size: 1.3rem; text-align: center; color: #ffffff; }
+    .modal-card h2 { margin-bottom: 20px; font-size: 1.3rem; text-align: center; color: #ffffff; }
 
     /* Header */
     header {
@@ -185,8 +185,8 @@
 <body>
 
   <!-- LOGIN OVERLAY -->
-  <div id="loginOverlay">
-    <div class="login-card">
+  <div id="loginOverlay" class="modal-overlay">
+    <div class="modal-card">
       <h2>VS Code Review Sign In</h2>
       <form id="loginForm">
         <div class="form-group">
@@ -203,6 +203,36 @@
     </div>
   </div>
 
+  <!-- GITHUB SETTINGS MODAL -->
+  <div id="githubModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h2>GitHub Repository Configuration</h2>
+      <form id="githubForm">
+        <div class="form-group">
+          <label>GitHub Owner / Username</label>
+          <input type="text" id="ghOwnerInput" placeholder="e.g. your-username" required>
+        </div>
+        <div class="form-group">
+          <label>Repository Name</label>
+          <input type="text" id="ghRepoInput" placeholder="e.g. my-code-review-repo" required>
+        </div>
+        <div class="form-group">
+          <label>Branch Name</label>
+          <input type="text" id="ghBranchInput" value="main" required>
+        </div>
+        <div class="form-group">
+          <label>Personal Access Token (PAT)</label>
+          <input type="password" id="ghTokenInput" placeholder="ghp_xxxxxxxxxxxx" required>
+          <small style="color: var(--text-muted); font-size: 0.75rem;">Requires <code>contents: write</code> permission.</small>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 16px;">
+          <button type="submit" class="btn btn-success" style="flex: 1;">Save Configuration</button>
+          <button type="button" class="btn btn-secondary" onclick="closeGitHubModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MAIN APP -->
   <div id="appContent" class="hidden">
     <header>
@@ -210,7 +240,10 @@
         <strong id="currentUserSpan" style="color: #ffffff;">-</strong>
         <span id="userRoleBadge" class="user-badge">-</span>
       </div>
-      <button class="btn btn-secondary" onclick="logout()">Logout</button>
+      <div>
+        <button class="btn btn-secondary" style="margin-right: 8px;" onclick="openGitHubModal()">⚙ GitHub Settings</button>
+        <button class="btn btn-secondary" onclick="logout()">Logout</button>
+      </div>
     </header>
 
     <main class="container">
@@ -235,12 +268,15 @@
               <input type="file" id="fileInput" accept=".cpp,.h,.hpp,.c,.txt" style="margin-bottom: 8px;">
               <textarea id="rawCodeInput" class="form-control" placeholder="// Paste C++ code here..."></textarea>
             </div>
-            <button type="submit" class="btn btn-success">Upload Code</button>
+            <button type="submit" id="uploadBtn" class="btn btn-success">Upload Code to GitHub</button>
           </form>
         </div>
 
         <div class="card">
-          <h3 style="margin-bottom: 16px; color: #ffffff;">Code Review Files</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="color: #ffffff;">Code Review Files</h3>
+            <button class="btn btn-secondary" onclick="syncMenuFromRepo()">↻ Sync from GitHub</button>
+          </div>
           <div id="fileListContainer">Loading repository menu...</div>
         </div>
       </div>
@@ -250,7 +286,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <button class="btn btn-secondary" onclick="showMenu()">&larr; Back to Menu</button>
           <div id="editorActions" style="display: flex; gap: 10px;">
-            <button id="saveEditsBtn" class="btn btn-success" onclick="saveEdits()">Save Edits</button>
+            <button id="saveEditsBtn" class="btn btn-success" onclick="saveEdits()">Save Edits to GitHub</button>
             <button id="markDoneBtn" class="btn hidden" style="background: #8957e5;" onclick="markAsDone()">Mark as Done</button>
             <button id="markReadBtn" class="btn btn-secondary hidden" onclick="markAsRead()">Mark as Read</button>
             <button id="deleteActiveFileBtn" class="btn btn-danger hidden" onclick="deleteActiveFile()">Delete File</button>
@@ -291,7 +327,6 @@
   <script>
   const CORRECT_HASH = "a4dd5658ec0219465b705ea7c7435d9786a3c66d4f448cabd7488dabceafb699";
 
-  // Account database mapping exactly to the hashes
   const ACCOUNTS = {
     'QwertyPi': { name: 'QwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: CORRECT_HASH },
     'WongChun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: CORRECT_HASH },
@@ -301,12 +336,130 @@
   let currentUser = null;
   let activeFileId = null;
 
+  /* --- GITHUB REST API ENGINE --- */
+  function getGitHubSettings() {
+    const data = localStorage.getItem('gh_config');
+    return data ? JSON.parse(data) : { owner: '', repo: '', branch: 'main', token: '' };
+  }
+
+  function saveGitHubSettings(config) {
+    localStorage.setItem('gh_config', JSON.stringify(config));
+  }
+
+  function openGitHubModal() {
+    const config = getGitHubSettings();
+    document.getElementById('ghOwnerInput').value = config.owner || '';
+    document.getElementById('ghRepoInput').value = config.repo || '';
+    document.getElementById('ghBranchInput').value = config.branch || 'main';
+    document.getElementById('ghTokenInput').value = config.token || '';
+    document.getElementById('githubModal').classList.remove('hidden');
+  }
+
+  function closeGitHubModal() {
+    document.getElementById('githubModal').classList.add('hidden');
+  }
+
+  document.getElementById('githubForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    saveGitHubSettings({
+      owner: document.getElementById('ghOwnerInput').value.trim(),
+      repo: document.getElementById('ghRepoInput').value.trim(),
+      branch: document.getElementById('ghBranchInput').value.trim() || 'main',
+      token: document.getElementById('ghTokenInput').value.trim()
+    });
+    alert('GitHub Configuration Saved!');
+    closeGitHubModal();
+    syncMenuFromRepo();
+  });
+
+  async function getGitHubSha(path) {
+    const { owner, repo, branch, token } = getGitHubSettings();
+    if (!owner || !repo || !token) return null;
+    
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.sha;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return null;
+  }
+
+  async function saveFileToGitHub(path, content, commitMessage) {
+    const { owner, repo, branch, token } = getGitHubSettings();
+    if (!owner || !repo || !token) {
+      openGitHubModal();
+      throw new Error("GitHub repository settings or token are missing. Please complete setup.");
+    }
+
+    const sha = await getGitHubSha(path);
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    
+    // Support UTF-8 encoding safely
+    const encodedContent = btoa(unescape(encodeURIComponent(content)));
+
+    const body = {
+      message: commitMessage,
+      content: encodedContent,
+      branch: branch
+    };
+    if (sha) body.sha = sha;
+
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Failed to commit file to GitHub.');
+    }
+    return await res.json();
+  }
+
+  async function deleteFileFromGitHub(path, commitMessage) {
+    const { owner, repo, branch, token } = getGitHubSettings();
+    if (!owner || !repo || !token) return;
+
+    const sha = await getGitHubSha(path);
+    if (!sha) return;
+
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      body: JSON.stringify({
+        message: commitMessage,
+        sha: sha,
+        branch: branch
+      })
+    });
+  }
+
+  /* --- CORE UTILITIES --- */
   function escapeHtml(str) {
     if (!str) return "";
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  // VS Code Dark+ C++ Syntax Highlighter Tokenizer
   function highlightCpp(code) {
     if (!code) return "";
     const tokenRegex = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|<[a-zA-Z0-9_.\/]+>)|(#[a-zA-Z_]\w*)|(\b(?:return|if|else|while|for|do|break|continue|switch|case|default|try|catch|throw)\b)|(\b(?:int|char|float|double|void|bool|long|short|unsigned|signed|auto|const|static|struct|class|enum|typename|template|virtual|override|final|public|private|protected|namespace|using|std|nullptr|true|false)\b)|(\b\d+(?:\.\d+)?\b)|(\b[a-zA-Z_]\w*)(?=\s*\()/g;
@@ -332,7 +485,6 @@
     return result;
   }
 
-  // Pure JavaScript SHA-256 Implementation (Works on file://, http, and https)
   function sha256(ascii) {
     function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
     var mathPow = Math.pow, maxWord = mathPow(2, 32), lengthProperty = 'length', i, j, result = '';
@@ -388,33 +540,25 @@
     return result;
   }
 
-  // Synchronous Login Handler
+  /* --- AUTH & NAVIGATION --- */
   document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const uInput = document.getElementById('usernameInput').value.trim();
     const pInput = document.getElementById('passwordInput').value.trim();
 
-    const account = ACCOUNTS[uInput]; // Exact case match
-    if (account) {
-      // Compute hash of entered password
-      const computedHash = sha256(pInput);
-      
-      // Compare STRICTLY to the hash, never to plaintext
-      if (computedHash === account.hash) {
-        currentUser = account;
-        document.getElementById('currentUserSpan').innerText = currentUser.name;
-        document.getElementById('userRoleBadge').innerText = currentUser.role;
+    const account = ACCOUNTS[uInput];
+    if (account && sha256(pInput) === account.hash) {
+      currentUser = account;
+      document.getElementById('currentUserSpan').innerText = currentUser.name;
+      document.getElementById('userRoleBadge').innerText = currentUser.role;
 
-        document.getElementById('loginOverlay').classList.add('hidden');
-        document.getElementById('appContent').classList.remove('hidden');
+      document.getElementById('loginOverlay').classList.add('hidden');
+      document.getElementById('appContent').classList.remove('hidden');
 
-        document.getElementById('uploadSection').classList.toggle('hidden', !currentUser.canUpload);
-        showMenu();
-        return;
-      }
+      document.getElementById('uploadSection').classList.toggle('hidden', !currentUser.canUpload);
+      showMenu();
+      return;
     }
-    
-    // If username doesn't exist or hash doesn't match
     document.getElementById('loginErrorMsg').classList.remove('hidden');
   });
 
@@ -438,22 +582,42 @@
     return stored ? JSON.parse(stored) : [];
   }
 
-  function saveStoredFiles(files) { 
+  function saveStoredFilesLocally(files) { 
     localStorage.setItem('cpp_project_files', JSON.stringify(files)); 
   }
 
-  async function syncMenuFromRepo() {
+  async function saveStoredFilesToGitHub(files, commitMsg) {
+    saveStoredFilesLocally(files);
     try {
-      const response = await fetch('code/list.json');
-      if (response.ok) {
-        const repoFiles = await response.json();
-        saveStoredFiles(repoFiles);
-      }
-    } catch (err) {
-      console.warn("Could not fetch code/list.json, falling back to local cached files.", err);
+      await saveFileToGitHub('code/list.json', JSON.stringify(files, null, 2), commitMsg);
+    } catch (e) {
+      alert(`Local copy saved, but GitHub sync failed: ${e.message}`);
     }
   }
 
+  async function syncMenuFromRepo() {
+    const config = getGitHubSettings();
+    const path = 'code/list.json';
+    let url = path;
+
+    // Use raw GitHub endpoint if configured
+    if (config.owner && config.repo) {
+      url = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.branch}/${path}?t=${Date.now()}`;
+    }
+
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        const repoFiles = await response.json();
+        saveStoredFilesLocally(repoFiles);
+      }
+    } catch (err) {
+      console.warn("Could not fetch code/list.json from GitHub, using cached files.", err);
+    }
+    renderFileList();
+  }
+
+  /* --- FILE UPLOAD & MANAGEMENT --- */
   document.getElementById('fileInput').addEventListener('change', function(e) {
     if (e.target.files[0]) {
       const reader = new FileReader();
@@ -462,40 +626,73 @@
     }
   });
 
-  document.getElementById('uploadForm').addEventListener('submit', function(e) {
+  document.getElementById('uploadForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const code = document.getElementById('rawCodeInput').value;
     if (!code) return alert('Please input code.');
-    
-    const files = getStoredFiles();
-    const newId = Date.now();
-    files.push({
-      id: newId,
-      name: document.getElementById('codeNameInput').value.trim(),
-      tag: document.getElementById('codeTagInput').value.trim(),
-      originalCode: code, 
-      modifiedCode: code, 
-      isMarked: false, 
-      isRead: false
-    });
-    saveStoredFiles(files);
-    this.reset();
-    renderFileList();
+
+    const uploadBtn = document.getElementById('uploadBtn');
+    uploadBtn.innerText = "Uploading to GitHub...";
+    uploadBtn.disabled = true;
+
+    try {
+      const newId = Date.now();
+      const origPath = `code/${newId}_original.cpp`;
+      const modPath = `code/${newId}_modified.cpp`;
+      const name = document.getElementById('codeNameInput').value.trim();
+      const tag = document.getElementById('codeTagInput').value.trim();
+
+      // Commit code files to GitHub
+      await saveFileToGitHub(origPath, code, `Add original code: ${name}`);
+      await saveFileToGitHub(modPath, code, `Add modified code: ${name}`);
+
+      const files = getStoredFiles();
+      files.push({
+        id: newId,
+        name: name,
+        tag: tag,
+        originalPath: origPath,
+        modifiedPath: modPath,
+        originalCode: code,
+        modifiedCode: code,
+        isMarked: false, 
+        isRead: false
+      });
+
+      await saveStoredFilesToGitHub(files, `Update file list for: ${name}`);
+      this.reset();
+      renderFileList();
+      alert('Code successfully committed to GitHub under code/ directory!');
+    } catch (err) {
+      alert(`Error uploading file: ${err.message}`);
+    } finally {
+      uploadBtn.innerText = "Upload Code to GitHub";
+      uploadBtn.disabled = false;
+    }
   });
 
-  function deleteFile(id, event) {
+  async function deleteFile(id, event) {
     if (event) event.stopPropagation();
-    if (confirm("Are you sure you want to delete this file?")) {
-      saveStoredFiles(getStoredFiles().filter(f => String(f.id) !== String(id)));
+    if (!confirm("Are you sure you want to delete this file from GitHub?")) return;
+
+    const files = getStoredFiles();
+    const file = files.find(f => String(f.id) === String(id));
+    if (file) {
+      if (file.originalPath) await deleteFileFromGitHub(file.originalPath, `Delete ${file.name} original`);
+      if (file.modifiedPath) await deleteFileFromGitHub(file.modifiedPath, `Delete ${file.name} modified`);
+
+      const updated = files.filter(f => String(f.id) !== String(id));
+      await saveStoredFilesToGitHub(updated, `Remove file ${file.name}`);
       renderFileList();
     }
   }
+
   function deleteActiveFile() { if (activeFileId) { deleteFile(activeFileId); showMenu(); } }
 
   function renderFileList() {
     const files = getStoredFiles();
     const container = document.getElementById('fileListContainer');
-    if (!files.length) return container.innerHTML = '<p style="color: var(--text-muted);">No files uploaded or found in code/ directory.</p>';
+    if (!files.length) return container.innerHTML = '<p style="color: var(--text-muted);">No files found in code/ directory. Click Sync or upload a new file.</p>';
 
     files.sort((a, b) => currentUser.role === 'Marker' 
       ? (a.isMarked === b.isMarked ? 0 : a.isMarked ? 1 : -1) 
@@ -518,6 +715,7 @@
     `).join('');
   }
 
+  /* --- EDITOR ENGINE & SAVING --- */
   async function openFileEditor(id) {
     const files = getStoredFiles();
     const file = files.find(f => String(f.id) === String(id));
@@ -531,15 +729,20 @@
     let modCode = file.modifiedCode || "";
 
     if (file.originalPath && file.modifiedPath) {
+      const config = getGitHubSettings();
+      const getRawUrl = path => (config.owner && config.repo) 
+        ? `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.branch}/${path}?t=${Date.now()}`
+        : path;
+
       try {
         const [origRes, modRes] = await Promise.all([
-          fetch(file.originalPath),
-          fetch(file.modifiedPath)
+          fetch(getRawUrl(file.originalPath)),
+          fetch(getRawUrl(file.modifiedPath))
         ]);
         if (origRes.ok) origCode = await origRes.text();
         if (modRes.ok) modCode = await modRes.text();
       } catch (err) {
-        console.warn("Could not fetch file content from code/ folder, using local storage cache.", err);
+        console.warn("Could not fetch file content from code/ folder, using cached copy.", err);
       }
     }
 
@@ -663,23 +866,49 @@
     }).join('');
   }
 
-  function saveEdits() {
-    const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
-    if (file) {
-      file.modifiedCode = document.getElementById('rightCodeEditor').value;
-      saveStoredFiles(files);
-      alert('Edits saved locally!');
+  async function saveEdits() {
+    const files = getStoredFiles();
+    const file = files.find(f => String(f.id) === String(activeFileId));
+    if (!file) return;
+
+    const newCode = document.getElementById('rightCodeEditor').value;
+    const saveBtn = document.getElementById('saveEditsBtn');
+    saveBtn.innerText = "Saving to GitHub...";
+    saveBtn.disabled = true;
+
+    try {
+      file.modifiedCode = newCode;
+      if (file.modifiedPath) {
+        await saveFileToGitHub(file.modifiedPath, newCode, `Update edited code for ${file.name} by ${currentUser.name}`);
+      }
+      await saveStoredFilesToGitHub(files, `Update metadata for ${file.name}`);
+      alert('Edits successfully saved and committed to GitHub!');
+    } catch (err) {
+      alert(`Save failed: ${err.message}`);
+    } finally {
+      saveBtn.innerText = "Save Edits to GitHub";
+      saveBtn.disabled = false;
     }
   }
 
-  function markAsDone() {
+  async function markAsDone() {
     const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
-    if (file) { file.isMarked = true; saveStoredFiles(files); alert('File marked as done!'); showMenu(); }
+    if (file) { 
+      file.isMarked = true; 
+      await saveStoredFilesToGitHub(files, `Mark ${file.name} as done`);
+      alert('File marked as done on GitHub!'); 
+      showMenu(); 
+    }
   }
 
-  function markAsRead() {
+  async function markAsRead() {
     const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
-    if (file) { file.isRead = true; saveStoredFiles(files); alert('File marked as read!'); showMenu(); }
+    if (file) { 
+      file.isRead = true; 
+      await saveStoredFilesToGitHub(files, `Mark ${file.name} as read`);
+      alert('File marked as read on GitHub!'); 
+      showMenu(); 
+    }
   }
   </script>
 </body>
