@@ -289,8 +289,8 @@
   </div>
 
   <script>
-  // This is the correct SHA-256 hash for "password123456"
-  const CORRECT_HASH = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+  // Correct SHA-256 hash for "password123456"
+  const CORRECT_HASH = "e4a1a38483b83981882d9213ef2b8be5689104081c72633010b1a03eef53655b";
 
   // Account database mapping exactly to the hashes
   const ACCOUNTS = {
@@ -341,7 +341,7 @@
     var hash = [], k = [], primeCounter = 0, isCandidate = {};
     for (var candidate = 2; primeCounter < 64; candidate++) {
       if (!isCandidate[candidate]) {
-        for (i = 0; i < 300; i += candidate) isCandidate[i] = true;
+        for (i = 0; i < 320; i += candidate) isCandidate[i] = true;
         if (primeCounter < 8) hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
         k[primeCounter] = (mathPow(candidate, 1/3) * maxWord) | 0;
         primeCounter++;
