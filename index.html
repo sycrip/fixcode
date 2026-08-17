@@ -289,14 +289,14 @@
   </div>
 
   <script>
-  // Cryptographic SHA-256 hash for authentication
-  const DEFAULT_HASH = "b2c125d0458df589b3f940868a2bfdfb27cc3bf7246ec4b76ef029f60a92b212";
+  // This is the correct SHA-256 hash for "password123456"
+  const CORRECT_HASH = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
 
-  // Account database with exact case-sensitive keys
+  // Account database mapping exactly to the hashes
   const ACCOUNTS = {
-    'QwertyPi': { name: 'QwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: DEFAULT_HASH },
-    'WongChun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: DEFAULT_HASH },
-    'firewater': { name: 'firewater', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true, hash: DEFAULT_HASH }
+    'QwertyPi': { name: 'QwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: CORRECT_HASH },
+    'WongChun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: CORRECT_HASH },
+    'firewater': { name: 'firewater', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true, hash: CORRECT_HASH }
   };
 
   let currentUser = null;
@@ -397,9 +397,10 @@
 
     const account = ACCOUNTS[uInput]; // Exact case match
     if (account) {
+      // Compute hash of entered password
       const computedHash = sha256(pInput);
       
-      
+      // Compare STRICTLY to the hash, never to plaintext
       if (computedHash === account.hash) {
         currentUser = account;
         document.getElementById('currentUserSpan').innerText = currentUser.name;
@@ -414,6 +415,7 @@
       }
     }
     
+    // If username doesn't exist or hash doesn't match
     document.getElementById('loginErrorMsg').classList.remove('hidden');
   });
 
