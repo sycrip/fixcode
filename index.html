@@ -1,915 +1,461 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VS Code C++ Code Review Platform</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FixCode - Main Dashboard</title>
   <style>
-    /* VS Code Default Dark+ Core Palette */
     :root {
-      --bg-dark: #181818;
-      --bg-sidebar: #1f1f1f;
-      --bg-card: #252526;
-      --bg-editor: #1e1e1e;
-      --border-color: #333333;
-      --text-main: #cccccc;
-      --text-muted: #858585;
-      --accent-blue: #007acc;
-      --accent-blue-hover: #0062a3;
-      
-      /* Diff Highlights */
-      --diff-del-bg: rgba(248, 81, 73, 0.18);
-      --diff-add-bg: rgba(46, 160, 67, 0.22);
-      
-      /* VS Code C++ Syntax Palette */
-      --syn-keyword: #569cd6;
-      --syn-control: #c586c0;
-      --syn-string: #ce9178;
-      --syn-comment: #6a9955;
-      --syn-number: #b5cea8;
-      --syn-func: #dcdcaa;
-      --syn-default: #d4d4d4;
-
-      --badge-done: #238636;
-      --badge-pending: #9e6a03;
-      --badge-read: #388bfd;
-      --btn-danger: #a40e0e;
-      --btn-danger-hover: #be1111;
+      --bg-color: #0d1117;
+      --card-bg: #161b22;
+      --border-color: #30363d;
+      --text-main: #c9d1d9;
+      --text-muted: #8b949e;
+      --accent-blue: #58a6ff;
+      --accent-green: #238636;
+      --accent-red: #da3633;
+      --accent-orange: #d29922;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-    body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.5; min-height: 100vh; }
-
-    .hidden { display: none !important; }
-
-    /* Modals */
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
-      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    .modal-card {
-      background: var(--bg-card); border: 1px solid var(--border-color);
-      padding: 32px; border-radius: 6px; width: 100%; max-width: 420px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-    }
-    .modal-card h2 { margin-bottom: 20px; font-size: 1.3rem; text-align: center; color: #ffffff; }
 
-    /* Header */
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
     header {
-      background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color);
-      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
-    }
-    .user-badge {
-      display: inline-block; padding: 2px 8px; border-radius: 4px;
-      font-size: 0.75rem; font-weight: bold; background: var(--accent-blue); color: white;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
     }
 
-    /* Common UI */
-    .container { max-width: 1400px; margin: 20px auto; padding: 0 16px; }
-    .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 4px; padding: 20px; margin-bottom: 20px; }
-    
-    .form-group { margin-bottom: 14px; }
-    .form-group label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-muted); }
-    input[type="text"], input[type="password"], textarea.form-control {
-      width: 100%; background: var(--bg-editor); border: 1px solid var(--border-color);
-      color: var(--text-main); padding: 8px 12px; border-radius: 4px; font-size: 0.9rem;
+    h1 {
+      font-size: 1.5rem;
+      color: #fff;
+    }
+
+    .repo-info {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .repo-info span {
+      color: var(--accent-blue);
+      font-weight: 600;
+    }
+
+    .pat-container {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    input[type="password"],
+    textarea {
+      background-color: #010409;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    input[type="password"]:focus,
+    textarea:focus {
+      outline: 1px solid var(--accent-blue);
+      border-color: var(--accent-blue);
     }
 
     .btn {
-      background: var(--accent-blue); color: white; border: none; padding: 8px 16px;
-      border-radius: 4px; font-size: 0.85rem; cursor: pointer; font-weight: 600;
-    }
-    .btn:hover { background: var(--accent-blue-hover); }
-    .btn-secondary { background: #3a3d41; }
-    .btn-secondary:hover { background: #45494e; }
-    .btn-success { background: #238636; }
-    .btn-success:hover { background: #2ea043; }
-    .btn-danger { background: var(--btn-danger); }
-    .btn-danger:hover { background: var(--btn-danger-hover); }
-
-    /* Badges & File List */
-    .status-tag { padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600; margin-left: 6px; }
-    .tag-marked { background: var(--badge-done); color: white; }
-    .tag-pending { background: var(--badge-pending); color: white; }
-    .tag-read { background: var(--badge-read); color: white; }
-
-    .file-item {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 12px; border-bottom: 1px solid var(--border-color); background: var(--bg-sidebar);
-      margin-bottom: 8px; border-radius: 4px;
-    }
-    .file-tag-pill { background: #333333; color: #9cdcfe; border: 1px solid #454545; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
-
-    /* Editor Layout */
-    .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
-    .editor-pane { background: var(--bg-editor); border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; }
-    .pane-header { background: #252526; padding: 8px 12px; border-bottom: 1px solid var(--border-color); font-size: 0.8rem; font-weight: bold; color: var(--text-muted); letter-spacing: 0.5px; }
-
-    /* Code Display Blocks */
-    .code-container {
-      font-family: 'Consolas', 'Courier New', Courier, monospace;
-      font-size: 13px; line-height: 19px; padding: 12px;
-      min-height: 480px; max-height: 600px; overflow: auto;
-      white-space: pre; tab-size: 4; background-color: var(--bg-editor);
-      color: var(--syn-default);
+      background-color: var(--border-color);
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: background-color 0.2s;
     }
 
-    /* Real-Time Syntax Highlighting Editor Wrapper */
-    .editor-wrapper {
-      position: relative;
-      height: 480px;
-      background: var(--bg-editor);
+    .btn:hover {
+      opacity: 0.9;
     }
-    
-    .highlight-layer, textarea.code-editor {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      font-family: 'Consolas', 'Courier New', Courier, monospace;
-      font-size: 13px;
-      line-height: 19px;
-      padding: 12px;
-      tab-size: 4;
-      white-space: pre;
-      margin: 0;
-      border: 0px solid transparent;
-      outline: none;
-      box-sizing: border-box;
-      letter-spacing: 0px;
-      word-spacing: 0px;
-      font-variant-ligatures: none;
-      font-feature-settings: "liga" 0;
-      -webkit-font-smoothing: antialiased;
+
+    .btn-primary {
+      background-color: var(--accent-blue);
+      color: #000;
     }
-    
-    .highlight-layer {
-      z-index: 1;
-      color: var(--syn-default);
-      overflow: hidden;
-      pointer-events: none;
+
+    .btn-danger {
+      background-color: var(--accent-red);
+    }
+
+    .btn-warning {
+      background-color: var(--accent-orange);
+      color: #000;
+    }
+
+    .btn-success {
+      background-color: var(--accent-green);
+    }
+
+    .code-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .code-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1.25rem;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .file-path {
+      font-family: monospace;
+      font-size: 1rem;
+      color: var(--accent-blue);
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    pre {
+      background-color: #010409;
+      padding: 1rem;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: monospace;
+      font-size: 0.85rem;
+      border: 1px solid var(--border-color);
+    }
+
+    .editor-container {
+      margin-top: 1rem;
+      display: none;
     }
 
     textarea.code-editor {
-      z-index: 2;
-      color: transparent;
-      background: transparent;
-      caret-color: #d4d4d4;
-      resize: none;
-      overflow: auto;
+      width: 100%;
+      height: 150px;
+      font-family: monospace;
+      margin-bottom: 0.5rem;
     }
 
-    /* Syntax Highlighting CSS Tokens */
-    .syn-keyword { color: var(--syn-keyword); font-weight: normal; }
-    .syn-control { color: var(--syn-control); font-weight: normal; }
-    .syn-string  { color: var(--syn-string); }
-    .syn-comment { color: var(--syn-comment); font-style: italic; }
-    .syn-number  { color: var(--syn-number); }
-    .syn-func    { color: var(--syn-func); }
+    .diff-container {
+      margin-top: 1rem;
+      padding: 1rem;
+      background-color: #010409;
+      border: 1px dashed var(--accent-orange);
+      border-radius: 6px;
+      display: none;
+      font-family: monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+    }
 
-    /* Diff Highlight Line Rows */
-    .diff-row { display: block; width: 100%; min-height: 19px; padding: 0 4px; }
-    .diff-del { 
-      background-color: var(--diff-del-bg); 
-      border-left: 3px solid #f85149; 
-      text-decoration: line-through; 
-      text-decoration-color: #f85149; 
+    .status-msg {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 6px;
+      display: none;
     }
-    .diff-add { 
-      background-color: var(--diff-add-bg); 
-      border-left: 3px solid #3fb950; 
-      text-decoration: underline; 
-      text-decoration-color: #3fb950; 
-      text-underline-offset: 2px; 
+
+    .status-msg.error {
+      background-color: rgba(218, 54, 51, 0.2);
+      border: 1px solid var(--accent-red);
+      color: #ff7b72;
     }
-    .diff-equal { border-left: 3px solid transparent; }
+
+    .status-msg.success {
+      background-color: rgba(35, 134, 54, 0.2);
+      border: 1px solid var(--accent-green);
+      color: #7ee787;
+    }
   </style>
 </head>
 <body>
 
-  <!-- LOGIN OVERLAY -->
-  <div id="loginOverlay" class="modal-overlay">
-    <div class="modal-card">
-      <h2>VS Code Review Sign In</h2>
-      <form id="loginForm">
-        <div class="form-group">
-          <label>Username</label>
-          <input type="text" id="usernameInput" placeholder="Enter username" required>
-        </div>
-        <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="passwordInput" placeholder="Enter password" required>
-        </div>
-        <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">Login</button>
-        <div id="loginErrorMsg" style="color: #f85149; font-size: 0.8rem; margin-top: 10px; text-align: center;" class="hidden">Invalid credentials</div>
-      </form>
-    </div>
-  </div>
-
-  <!-- GITHUB SETTINGS MODAL -->
-  <div id="githubModal" class="modal-overlay hidden">
-    <div class="modal-card">
-      <h2>GitHub Repository Configuration</h2>
-      <form id="githubForm">
-        <div class="form-group">
-          <label>GitHub Owner / Username</label>
-          <input type="text" id="ghOwnerInput" placeholder="e.g. your-username" required>
-        </div>
-        <div class="form-group">
-          <label>Repository Name</label>
-          <input type="text" id="ghRepoInput" placeholder="e.g. my-code-review-repo" required>
-        </div>
-        <div class="form-group">
-          <label>Branch Name</label>
-          <input type="text" id="ghBranchInput" value="main" required>
-        </div>
-        <div class="form-group">
-          <label>Personal Access Token (PAT)</label>
-          <input type="password" id="ghTokenInput" placeholder="ghp_xxxxxxxxxxxx" required>
-          <small style="color: var(--text-muted); font-size: 0.75rem;">Requires <code>contents: write</code> permission.</small>
-        </div>
-        <div style="display: flex; gap: 10px; margin-top: 16px;">
-          <button type="submit" class="btn btn-success" style="flex: 1;">Save Configuration</button>
-          <button type="button" class="btn btn-secondary" onclick="closeGitHubModal()">Cancel</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- MAIN APP -->
-  <div id="appContent" class="hidden">
+  <div class="container">
     <header>
       <div>
-        <strong id="currentUserSpan" style="color: #ffffff;">-</strong>
-        <span id="userRoleBadge" class="user-badge">-</span>
+        <h1>FixCode Management Console</h1>
+        <div class="repo-info">
+          Repository: <span id="repo-display"></span> | Branch: <span id="branch-display"></span>
+        </div>
       </div>
-      <div>
-        <button class="btn btn-secondary" style="margin-right: 8px;" onclick="openGitHubModal()">⚙ GitHub Settings</button>
-        <button class="btn btn-secondary" onclick="logout()">Logout</button>
+      
+      <div class="pat-container">
+        <input type="password" id="pat-input" placeholder="Enter GitHub PAT..." />
+        <button class="btn btn-primary" onclick="loadRepositoryContent()">Load Files</button>
       </div>
     </header>
 
-    <main class="container">
-      <!-- DASHBOARD / MENU VIEW -->
-      <div id="menuView">
-        <div id="uploadSection" class="card hidden">
-          <h3 style="margin-bottom: 12px; color: #ffffff;">Upload C++ File or Source Code</h3>
-          <form id="uploadForm">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-              <div class="form-group">
-                <label>Code Name / Title</label>
-                <input type="text" id="codeNameInput" placeholder="e.g. Solution.cpp" required>
-              </div>
-              <div class="form-group">
-                <label>Tag / Category</label>
-                <input type="text" id="codeTagInput" placeholder="e.g. Homework 1" required>
-              </div>
-            </div>
-            
-            <div class="form-group">
-              <label>Select C++ File OR Input Text Directly</label>
-              <input type="file" id="fileInput" accept=".cpp,.h,.hpp,.c,.txt" style="margin-bottom: 8px;">
-              <textarea id="rawCodeInput" class="form-control" placeholder="// Paste C++ code here..."></textarea>
-            </div>
-            <button type="submit" id="uploadBtn" class="btn btn-success">Upload Code to GitHub</button>
-          </form>
-        </div>
+    <div id="status-box" class="status-msg"></div>
 
-        <div class="card">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h3 style="color: #ffffff;">Code Review Files</h3>
-            <button class="btn btn-secondary" onclick="syncMenuFromRepo()">↻ Sync from GitHub</button>
-          </div>
-          <div id="fileListContainer">Loading repository menu...</div>
-        </div>
-      </div>
-
-      <!-- EDITOR VIEW -->
-      <div id="editorView" class="hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <button class="btn btn-secondary" onclick="showMenu()">&larr; Back to Menu</button>
-          <div id="editorActions" style="display: flex; gap: 10px;">
-            <button id="saveEditsBtn" class="btn btn-success" onclick="saveEdits()">Save Edits to GitHub</button>
-            <button id="markDoneBtn" class="btn hidden" style="background: #8957e5;" onclick="markAsDone()">Mark as Done</button>
-            <button id="markReadBtn" class="btn btn-secondary hidden" onclick="markAsRead()">Mark as Read</button>
-            <button id="deleteActiveFileBtn" class="btn btn-danger hidden" onclick="deleteActiveFile()">Delete File</button>
-          </div>
-        </div>
-
-        <div class="card" style="padding: 12px 20px; margin-bottom: 12px;">
-          <h2 id="activeFileTitle" style="color: #ffffff;">-</h2>
-          <span id="activeFileTag" class="file-tag-pill">-</span>
-        </div>
-
-        <!-- Side-by-Side View -->
-        <div class="editor-grid">
-          <!-- Left: Original Code Pane -->
-          <div class="editor-pane">
-            <div class="pane-header">ORIGINAL CODE</div>
-            <div id="leftCodeContainer" class="code-container"></div>
-          </div>
-
-          <!-- Right: Editor Pane OR Diff Viewer -->
-          <div class="editor-pane">
-            <div id="rightPaneHeader" class="pane-header">EDIT CODE</div>
-            
-            <!-- Real-Time Editor Wrapper (For Markers) -->
-            <div id="editorWrapper" class="editor-wrapper hidden">
-              <div id="highlightLayer" class="highlightLayer" aria-hidden="true"></div>
-              <textarea id="rightCodeEditor" class="code-editor" spellcheck="false"></textarea>
-            </div>
-
-            <!-- Diff Viewer (For Firewater) -->
-            <div id="rightDiffView" class="code-container hidden"></div>
-          </div>
-        </div>
+    <main>
+      <div id="code-list" class="code-list">
+        <!-- Code items will render here dynamically -->
       </div>
     </main>
   </div>
 
   <script>
-  const CORRECT_HASH = "a4dd5658ec0219465b705ea7c7435d9786a3c66d4f448cabd7488dabceafb699";
-
-  const ACCOUNTS = {
-    'QwertyPi': { name: 'QwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: CORRECT_HASH },
-    'WongChun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: CORRECT_HASH },
-    'firewater': { name: 'firewater', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true, hash: CORRECT_HASH }
-  };
-
-  let currentUser = null;
-  let activeFileId = null;
-
-  /* --- GITHUB REST API ENGINE --- */
-  function getGitHubSettings() {
-    const data = localStorage.getItem('gh_config');
-    return data ? JSON.parse(data) : { owner: '', repo: '', branch: 'main', token: '' };
-  }
-
-  function saveGitHubSettings(config) {
-    localStorage.setItem('gh_config', JSON.stringify(config));
-  }
-
-  function openGitHubModal() {
-    const config = getGitHubSettings();
-    document.getElementById('ghOwnerInput').value = config.owner || '';
-    document.getElementById('ghRepoInput').value = config.repo || '';
-    document.getElementById('ghBranchInput').value = config.branch || 'main';
-    document.getElementById('ghTokenInput').value = config.token || '';
-    document.getElementById('githubModal').classList.remove('hidden');
-  }
-
-  function closeGitHubModal() {
-    document.getElementById('githubModal').classList.add('hidden');
-  }
-
-  document.getElementById('githubForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    saveGitHubSettings({
-      owner: document.getElementById('ghOwnerInput').value.trim(),
-      repo: document.getElementById('ghRepoInput').value.trim(),
-      branch: document.getElementById('ghBranchInput').value.trim() || 'main',
-      token: document.getElementById('ghTokenInput').value.trim()
-    });
-    alert('GitHub Configuration Saved!');
-    closeGitHubModal();
-    syncMenuFromRepo();
-  });
-
-  async function getGitHubSha(path) {
-    const { owner, repo, branch, token } = getGitHubSettings();
-    if (!owner || !repo || !token) return null;
-    
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
-    try {
-      const res = await fetch(url, {
-        headers: {
-          'Authorization': `token ${token}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return data.sha;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return null;
-  }
-
-  async function saveFileToGitHub(path, content, commitMessage) {
-    const { owner, repo, branch, token } = getGitHubSettings();
-    if (!owner || !repo || !token) {
-      openGitHubModal();
-      throw new Error("GitHub repository settings or token are missing. Please complete setup.");
-    }
-
-    const sha = await getGitHubSha(path);
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-    
-    // Support UTF-8 encoding safely
-    const encodedContent = btoa(unescape(encodeURIComponent(content)));
-
-    const body = {
-      message: commitMessage,
-      content: encodedContent,
-      branch: branch
+    // GitHub Repository Configuration
+    const GITHUB_CONFIG = {
+      username: "sycrip",
+      repo: "fixcode",
+      branch: "main"
     };
-    if (sha) body.sha = sha;
 
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `token ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github.v3+json'
-      },
-      body: JSON.stringify(body)
-    });
+    // Store original content to compute changes/diffs
+    const originalContentMap = {};
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'Failed to commit file to GitHub.');
-    }
-    return await res.json();
-  }
-
-  async function deleteFileFromGitHub(path, commitMessage) {
-    const { owner, repo, branch, token } = getGitHubSettings();
-    if (!owner || !repo || !token) return;
-
-    const sha = await getGitHubSha(path);
-    if (!sha) return;
-
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-    await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `token ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github.v3+json'
-      },
-      body: JSON.stringify({
-        message: commitMessage,
-        sha: sha,
-        branch: branch
-      })
-    });
-  }
-
-  /* --- CORE UTILITIES --- */
-  function escapeHtml(str) {
-    if (!str) return "";
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-
-  function highlightCpp(code) {
-    if (!code) return "";
-    const tokenRegex = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|<[a-zA-Z0-9_.\/]+>)|(#[a-zA-Z_]\w*)|(\b(?:return|if|else|while|for|do|break|continue|switch|case|default|try|catch|throw)\b)|(\b(?:int|char|float|double|void|bool|long|short|unsigned|signed|auto|const|static|struct|class|enum|typename|template|virtual|override|final|public|private|protected|namespace|using|std|nullptr|true|false)\b)|(\b\d+(?:\.\d+)?\b)|(\b[a-zA-Z_]\w*)(?=\s*\()/g;
-
-    let result = "";
-    let lastIndex = 0;
-    let match;
-
-    while ((match = tokenRegex.exec(code)) !== null) {
-      result += escapeHtml(code.slice(lastIndex, match.index));
-      const [fullMatch, comment, str, prep, control, keyword, number, func] = match;
-
-      if (comment) result += `<span class="syn-comment">${escapeHtml(comment)}</span>`;
-      else if (str) result += `<span class="syn-string">${escapeHtml(str)}</span>`;
-      else if (prep || control) result += `<span class="syn-control">${escapeHtml(prep || control)}</span>`;
-      else if (keyword) result += `<span class="syn-keyword">${escapeHtml(keyword)}</span>`;
-      else if (number) result += `<span class="syn-number">${escapeHtml(number)}</span>`;
-      else if (func) result += `<span class="syn-func">${escapeHtml(func)}</span>`;
+    // Initialize UI on load
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("repo-display").textContent = `${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}`;
+      document.getElementById("branch-display").textContent = GITHUB_CONFIG.branch;
       
-      lastIndex = tokenRegex.lastIndex;
-    }
-    result += escapeHtml(code.slice(lastIndex));
-    return result;
-  }
+      // Initial render with placeholder data
+      renderCodeList([
+        { path: "src/index.js", sha: "mock1", content: 'console.log("Hello, FixCode!");' },
+        { path: "src/utils.js", sha: "mock2", content: 'function add(a, b) {\n  return a + b;\n}' }
+      ]);
+    });
 
-  function sha256(ascii) {
-    function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
-    var mathPow = Math.pow, maxWord = mathPow(2, 32), lengthProperty = 'length', i, j, result = '';
-    var words = [], asciiLength = ascii[lengthProperty] * 8;
-    var hash = [], k = [], primeCounter = 0, isCandidate = {};
-    for (var candidate = 2; primeCounter < 64; candidate++) {
-      if (!isCandidate[candidate]) {
-        for (i = 0; i < 320; i += candidate) isCandidate[i] = true;
-        if (primeCounter < 8) hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
-        k[primeCounter] = (mathPow(candidate, 1/3) * maxWord) | 0;
-        primeCounter++;
+    function getPAT() {
+      return document.getElementById("pat-input").value.trim();
+    }
+
+    function showStatus(message, isError = false) {
+      const statusBox = document.getElementById("status-box");
+      statusBox.textContent = message;
+      statusBox.className = `status-msg ${isError ? 'error' : 'success'}`;
+      statusBox.style.display = "block";
+      setTimeout(() => { statusBox.style.display = "none"; }, 5000);
+    }
+
+    // Fetch files from GitHub REST API
+    async function loadRepositoryContent() {
+      const pat = getPAT();
+      if (!pat) {
+        showStatus("Please enter your Personal Access Token (PAT) first.", true);
+        return;
       }
-    }
-    ascii += '\x80';
-    while (ascii[lengthProperty] % 64 - 56) ascii += '\x00';
-    for (i = 0; i < ascii[lengthProperty]; i++) {
-      j = ascii.charCodeAt(i);
-      if (j >> 8) return;
-      words[i >> 2] |= j << ((3 - i % 4) * 8);
-    }
-    words[words[lengthProperty]] = ((asciiLength / maxWord) | 0);
-    words[words[lengthProperty]] = (asciiLength);
-    for (j = 0; j < words[lengthProperty];) {
-      var w = words.slice(j, j += 16), oldHash = hash;
-      hash = hash.slice(0, 8);
-      for (i = 0; i < 64; i++) {
-        var w15 = w[i - 15], w2 = w[i - 2];
-        var a = hash[0], e = hash[4];
-        var temp1 = hash[7]
-          + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
-          + ((e & hash[5]) ^ ((~e) & hash[6]))
-          + k[i]
-          + (w[i] = (i < 16) ? w[i] : (
-              w[i - 16]
-              + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
-              + w[i - 7]
-              + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
-            ) | 0
-          );
-        var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
-          + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
-        hash = [(temp1 + temp2) | 0].concat(hash);
-        hash[4] = (hash[4] + temp1) | 0;
-      }
-      for (i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
-    }
-    for (i = 0; i < 8; i++) {
-      for (j = 3; j >= 0; j--) {
-        var b = (hash[i] >> (j * 8)) & 255;
-        result += (b < 16 ? '0' : '') + b.toString(16);
-      }
-    }
-    return result;
-  }
 
-  /* --- AUTH & NAVIGATION --- */
-  document.getElementById('loginForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const uInput = document.getElementById('usernameInput').value.trim();
-    const pInput = document.getElementById('passwordInput').value.trim();
-
-    const account = ACCOUNTS[uInput];
-    if (account && sha256(pInput) === account.hash) {
-      currentUser = account;
-      document.getElementById('currentUserSpan').innerText = currentUser.name;
-      document.getElementById('userRoleBadge').innerText = currentUser.role;
-
-      document.getElementById('loginOverlay').classList.add('hidden');
-      document.getElementById('appContent').classList.remove('hidden');
-
-      document.getElementById('uploadSection').classList.toggle('hidden', !currentUser.canUpload);
-      showMenu();
-      return;
-    }
-    document.getElementById('loginErrorMsg').classList.remove('hidden');
-  });
-
-  function logout() {
-    currentUser = null;
-    document.getElementById('loginForm').reset();
-    document.getElementById('loginErrorMsg').classList.add('hidden');
-    document.getElementById('loginOverlay').classList.remove('hidden');
-    document.getElementById('appContent').classList.add('hidden');
-  }
-
-  async function showMenu() {
-    document.getElementById('menuView').classList.remove('hidden');
-    document.getElementById('editorView').classList.add('hidden');
-    await syncMenuFromRepo();
-    renderFileList();
-  }
-
-  function getStoredFiles() {
-    const stored = localStorage.getItem('cpp_project_files');
-    return stored ? JSON.parse(stored) : [];
-  }
-
-  function saveStoredFilesLocally(files) { 
-    localStorage.setItem('cpp_project_files', JSON.stringify(files)); 
-  }
-
-  async function saveStoredFilesToGitHub(files, commitMsg) {
-    saveStoredFilesLocally(files);
-    try {
-      await saveFileToGitHub('code/list.json', JSON.stringify(files, null, 2), commitMsg);
-    } catch (e) {
-      alert(`Local copy saved, but GitHub sync failed: ${e.message}`);
-    }
-  }
-
-  async function syncMenuFromRepo() {
-    const config = getGitHubSettings();
-    const path = 'code/list.json';
-    let url = path;
-
-    // Use raw GitHub endpoint if configured
-    if (config.owner && config.repo) {
-      url = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.branch}/${path}?t=${Date.now()}`;
-    }
-
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        const repoFiles = await response.json();
-        saveStoredFilesLocally(repoFiles);
-      }
-    } catch (err) {
-      console.warn("Could not fetch code/list.json from GitHub, using cached files.", err);
-    }
-    renderFileList();
-  }
-
-  /* --- FILE UPLOAD & MANAGEMENT --- */
-  document.getElementById('fileInput').addEventListener('change', function(e) {
-    if (e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = evt => document.getElementById('rawCodeInput').value = evt.target.result;
-      reader.readAsText(e.target.files[0]);
-    }
-  });
-
-  document.getElementById('uploadForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const code = document.getElementById('rawCodeInput').value;
-    if (!code) return alert('Please input code.');
-
-    const uploadBtn = document.getElementById('uploadBtn');
-    uploadBtn.innerText = "Uploading to GitHub...";
-    uploadBtn.disabled = true;
-
-    try {
-      const newId = Date.now();
-      const origPath = `code/${newId}_original.cpp`;
-      const modPath = `code/${newId}_modified.cpp`;
-      const name = document.getElementById('codeNameInput').value.trim();
-      const tag = document.getElementById('codeTagInput').value.trim();
-
-      // Commit code files to GitHub
-      await saveFileToGitHub(origPath, code, `Add original code: ${name}`);
-      await saveFileToGitHub(modPath, code, `Add modified code: ${name}`);
-
-      const files = getStoredFiles();
-      files.push({
-        id: newId,
-        name: name,
-        tag: tag,
-        originalPath: origPath,
-        modifiedPath: modPath,
-        originalCode: code,
-        modifiedCode: code,
-        isMarked: false, 
-        isRead: false
-      });
-
-      await saveStoredFilesToGitHub(files, `Update file list for: ${name}`);
-      this.reset();
-      renderFileList();
-      alert('Code successfully committed to GitHub under code/ directory!');
-    } catch (err) {
-      alert(`Error uploading file: ${err.message}`);
-    } finally {
-      uploadBtn.innerText = "Upload Code to GitHub";
-      uploadBtn.disabled = false;
-    }
-  });
-
-  async function deleteFile(id, event) {
-    if (event) event.stopPropagation();
-    if (!confirm("Are you sure you want to delete this file from GitHub?")) return;
-
-    const files = getStoredFiles();
-    const file = files.find(f => String(f.id) === String(id));
-    if (file) {
-      if (file.originalPath) await deleteFileFromGitHub(file.originalPath, `Delete ${file.name} original`);
-      if (file.modifiedPath) await deleteFileFromGitHub(file.modifiedPath, `Delete ${file.name} modified`);
-
-      const updated = files.filter(f => String(f.id) !== String(id));
-      await saveStoredFilesToGitHub(updated, `Remove file ${file.name}`);
-      renderFileList();
-    }
-  }
-
-  function deleteActiveFile() { if (activeFileId) { deleteFile(activeFileId); showMenu(); } }
-
-  function renderFileList() {
-    const files = getStoredFiles();
-    const container = document.getElementById('fileListContainer');
-    if (!files.length) return container.innerHTML = '<p style="color: var(--text-muted);">No files found in code/ directory. Click Sync or upload a new file.</p>';
-
-    files.sort((a, b) => currentUser.role === 'Marker' 
-      ? (a.isMarked === b.isMarked ? 0 : a.isMarked ? 1 : -1) 
-      : ((a.isMarked && !a.isRead ? 1 : !a.isMarked ? 2 : 3) - (b.isMarked && !b.isRead ? 1 : !b.isMarked ? 2 : 3))
-    );
-
-    container.innerHTML = files.map(f => `
-      <div class="file-item">
-        <div class="file-meta">
-          <strong style="color: #ffffff;">${escapeHtml(f.name)}</strong>
-          <span class="file-tag-pill">${escapeHtml(f.tag)}</span>
-          ${f.isMarked ? '<span class="status-tag tag-marked">Marked as Done</span>' : '<span class="status-tag tag-pending">Pending</span>'}
-          ${f.isRead ? '<span class="status-tag tag-read">Read</span>' : ''}
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-secondary" onclick="openFileEditor('${f.id}')">Open & View</button>
-          ${currentUser.canUpload ? `<button class="btn btn-danger" onclick="deleteFile('${f.id}', event)">Delete</button>` : ''}
-        </div>
-      </div>
-    `).join('');
-  }
-
-  /* --- EDITOR ENGINE & SAVING --- */
-  async function openFileEditor(id) {
-    const files = getStoredFiles();
-    const file = files.find(f => String(f.id) === String(id));
-    if (!file) return;
-
-    activeFileId = id;
-    document.getElementById('activeFileTitle').innerText = file.name;
-    document.getElementById('activeFileTag').innerText = file.tag;
-
-    let origCode = file.originalCode || "";
-    let modCode = file.modifiedCode || "";
-
-    if (file.originalPath && file.modifiedPath) {
-      const config = getGitHubSettings();
-      const getRawUrl = path => (config.owner && config.repo) 
-        ? `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.branch}/${path}?t=${Date.now()}`
-        : path;
+      const url = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/contents?ref=${GITHUB_CONFIG.branch}`;
 
       try {
-        const [origRes, modRes] = await Promise.all([
-          fetch(getRawUrl(file.originalPath)),
-          fetch(getRawUrl(file.modifiedPath))
-        ]);
-        if (origRes.ok) origCode = await origRes.text();
-        if (modRes.ok) modCode = await modRes.text();
+        const response = await fetch(url, {
+          headers: {
+            "Authorization": `token ${pat}`,
+            "Accept": "application/vnd.github.v3+json"
+          }
+        });
+
+        if (!response.ok) throw new Error(`GitHub API Error: ${response.statusText}`);
+
+        const data = await response.json();
+        const fileItems = [];
+
+        // Fetch detailed content for code files
+        for (const item of data) {
+          if (item.type === "file") {
+            const fileRes = await fetch(item.url, {
+              headers: { "Authorization": `token ${pat}` }
+            });
+            const fileData = await fileRes.json();
+            const decodedContent = atob(fileData.content.replace(/\n/g, ''));
+            
+            fileItems.push({
+              path: item.path,
+              sha: item.sha,
+              content: decodedContent
+            });
+          }
+        }
+
+        renderCodeList(fileItems);
+        showStatus("Repository content loaded successfully.");
       } catch (err) {
-        console.warn("Could not fetch file content from code/ folder, using cached copy.", err);
+        showStatus(err.message, true);
       }
     }
 
-    document.getElementById('leftCodeContainer').innerHTML = highlightCpp(origCode);
+    // Render code cards into the DOM
+    function renderCodeList(files) {
+      const container = document.getElementById("code-list");
+      container.innerHTML = "";
 
-    const editorWrap = document.getElementById('editorWrapper');
-    const diffView = document.getElementById('rightDiffView');
-    const header = document.getElementById('rightPaneHeader');
+      files.forEach((file, index) => {
+        originalContentMap[file.path] = file.content;
 
-    if (currentUser.canMark) {
-      header.innerText = "EDIT CODE";
-      editorWrap.classList.remove('hidden');
-      diffView.classList.add('hidden');
+        const card = document.createElement("div");
+        card.className = "code-card";
+        card.id = `card-${index}`;
+
+        card.innerHTML = `
+          <div class="card-header">
+            <span class="file-path">${file.path}</span>
+            <div class="actions">
+              <button class="btn btn-danger" onclick="deleteCode('${file.path}', '${file.sha}')">Delete</button>
+              <button class="btn btn-warning" onclick="toggleEdit('${index}')">Edit</button>
+              <button class="btn btn-primary" onclick="reviewChange('${index}', '${file.path}')">Review Change</button>
+            </div>
+          </div>
+          
+          <pre id="view-${index}">${escapeHTML(file.content)}</pre>
+
+          <div id="editor-container-${index}" class="editor-container">
+            <textarea id="editor-${index}" class="code-editor">${file.content}</textarea>
+            <button class="btn btn-success" onclick="saveEdit('${file.path}', '${file.sha}', '${index}')">Save to GitHub</button>
+          </div>
+
+          <div id="diff-${index}" class="diff-container"></div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // 1. Action: Delete
+    async function deleteCode(path, sha) {
+      if (!confirm(`Are you sure you want to delete ${path}?`)) return;
+
+      const pat = getPAT();
+      if (!pat) {
+        showStatus("PAT required to delete file.", true);
+        return;
+      }
+
+      const url = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/contents/${path}`;
+
+      try {
+        const response = await fetch(url, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `token ${pat}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message: `Delete ${path} via FixCode App`,
+            sha: sha,
+            branch: GITHUB_CONFIG.branch
+          })
+        });
+
+        if (!response.ok) throw new Error("Failed to delete file.");
+
+        showStatus(`Deleted ${path} successfully.`);
+        loadRepositoryContent(); // Reload UI
+      } catch (err) {
+        showStatus(err.message, true);
+      }
+    }
+
+    // 2. Action: Edit Toggle & Save
+    function toggleEdit(index) {
+      const editor = document.getElementById(`editor-container-${index}`);
+      const view = document.getElementById(`view-${index}`);
+      const isEditing = editor.style.display === "block";
+
+      editor.style.display = isEditing ? "none" : "block";
+      view.style.display = isEditing ? "block" : "none";
+    }
+
+    async function saveEdit(path, sha, index) {
+      const pat = getPAT();
+      if (!pat) {
+        showStatus("PAT required to save changes.", true);
+        return;
+      }
+
+      const newContent = document.getElementById(`editor-${index}`).value;
+      const url = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/contents/${path}`;
+
+      try {
+        const response = await fetch(url, {
+          method: "PUT",
+          headers: {
+            "Authorization": `token ${pat}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message: `Update ${path} via FixCode App`,
+            content: btoa(newContent),
+            sha: sha,
+            branch: GITHUB_CONFIG.branch
+          })
+        });
+
+        if (!response.ok) throw new Error("Failed to update file.");
+
+        showStatus(`Saved changes for ${path}.`);
+        loadRepositoryContent();
+      } catch (err) {
+        showStatus(err.message, true);
+      }
+    }
+
+    // 3. Action: Review Change
+    function reviewChange(index, path) {
+      const diffBox = document.getElementById(`diff-${index}`);
+      const currentContent = document.getElementById(`editor-${index}`) 
+        ? document.getElementById(`editor-${index}`).value 
+        : originalContentMap[path];
       
-      document.getElementById('rightCodeEditor').value = modCode || origCode;
-      syncEditorHighlighting();
+      const original = originalContentMap[path] || "";
 
-      document.getElementById('saveEditsBtn').classList.remove('hidden');
-      document.getElementById('markDoneBtn').classList.remove('hidden');
-      document.getElementById('markReadBtn').classList.add('hidden');
-      document.getElementById('deleteActiveFileBtn').classList.add('hidden');
-    } else {
-      header.innerText = "CODE COMPARISON RESULT";
-      editorWrap.classList.add('hidden');
-      diffView.classList.remove('hidden');
+      if (diffBox.style.display === "block") {
+        diffBox.style.display = "none";
+        return;
+      }
 
-      document.getElementById('saveEditsBtn').classList.add('hidden');
-      document.getElementById('markDoneBtn').classList.add('hidden');
-      document.getElementById('markReadBtn').classList.remove('hidden');
-      document.getElementById('deleteActiveFileBtn').classList.remove('hidden');
-
-      renderComparisonResult(origCode, modCode);
-    }
-
-    document.getElementById('menuView').classList.add('hidden');
-    document.getElementById('editorView').classList.remove('hidden');
-  }
-
-  const editorTextarea = document.getElementById('rightCodeEditor');
-  const highlightLayer = document.getElementById('highlightLayer');
-
-  function syncEditorHighlighting() {
-    const code = editorTextarea.value;
-    highlightLayer.innerHTML = highlightCpp(code) + (code.endsWith('\n') ? ' ' : '');
-  }
-
-  editorTextarea.addEventListener('input', syncEditorHighlighting);
-  
-  editorTextarea.addEventListener('scroll', function() {
-    highlightLayer.scrollTop = this.scrollTop;
-    highlightLayer.scrollLeft = this.scrollLeft;
-  });
-
-  editorTextarea.addEventListener('keydown', function(e) {
-    const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
-    
-    if (pairs[e.key]) {
-      e.preventDefault();
-      const start = this.selectionStart, end = this.selectionEnd, val = this.value;
-      this.value = val.substring(0, start) + e.key + pairs[e.key] + val.substring(end);
-      this.selectionStart = this.selectionEnd = start + 1;
-      syncEditorHighlighting();
-      return;
-    }
-
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const start = this.selectionStart, end = this.selectionEnd;
-      this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
-      this.selectionStart = this.selectionEnd = start + 4;
-      syncEditorHighlighting();
-      return;
-    }
-
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const start = this.selectionStart, val = this.value;
-      const currentLine = val.substring(val.lastIndexOf('\n', start - 1) + 1, start);
-      const baseIndent = (currentLine.match(/^\s*/) || [''])[0];
-
-      if (val[start - 1] === '{' && val[start] === '}') {
-        const innerIndent = baseIndent + '    ';
-        this.value = val.substring(0, start) + '\n' + innerIndent + '\n' + baseIndent + val.substring(start);
-        this.selectionStart = this.selectionEnd = start + 1 + innerIndent.length;
+      if (original === currentContent) {
+        diffBox.innerHTML = "<em>No changes detected from original file.</em>";
       } else {
-        const indent = baseIndent + (currentLine.trim().endsWith('{') ? '    ' : '');
-        this.value = val.substring(0, start) + '\n' + indent + val.substring(start);
-        this.selectionStart = this.selectionEnd = start + 1 + indent.length;
+        diffBox.innerHTML = `<strong>Changes comparison:</strong>\n\n` +
+          `<span style="color: var(--accent-red);">- Original (${original.length} chars)</span>\n` +
+          `<span style="color: var(--accent-green);">+ Modified (${currentContent.length} chars)</span>`;
       }
-      syncEditorHighlighting();
-    }
-  });
 
-  function computeLineLCS(origText, modText) {
-    const origLines = origText.split('\n'), modLines = modText.split('\n');
-    const dp = Array.from({ length: origLines.length + 1 }, () => new Int32Array(modLines.length + 1));
-
-    for (let i = 0; i < origLines.length; i++) {
-      for (let j = 0; j < modLines.length; j++) {
-        dp[i + 1][j + 1] = origLines[i] === modLines[j] ? dp[i][j] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
-      }
+      diffBox.style.display = "block";
     }
 
-    let i = origLines.length, j = modLines.length, diff = [];
-    while (i > 0 || j > 0) {
-      if (i > 0 && j > 0 && origLines[i - 1] === modLines[j - 1]) {
-        diff.push({ type: 'equal', value: origLines[i - 1] }); i--; j--;
-      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-        diff.push({ type: 'add', value: modLines[j - 1] }); j--;
-      } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
-        diff.push({ type: 'delete', value: origLines[i - 1] }); i--;
-      }
+    function escapeHTML(str) {
+      return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+      );
     }
-    return diff.reverse();
-  }
-
-  function renderComparisonResult(origText, modText) {
-    document.getElementById('rightDiffView').innerHTML = computeLineLCS(origText, modText).map(chunk => {
-      const hl = highlightCpp(chunk.value) || '&nbsp;';
-      return `<div class="diff-row diff-${chunk.type === 'delete' ? 'del' : chunk.type === 'add' ? 'add' : 'equal'}">${hl}</div>`;
-    }).join('');
-  }
-
-  async function saveEdits() {
-    const files = getStoredFiles();
-    const file = files.find(f => String(f.id) === String(activeFileId));
-    if (!file) return;
-
-    const newCode = document.getElementById('rightCodeEditor').value;
-    const saveBtn = document.getElementById('saveEditsBtn');
-    saveBtn.innerText = "Saving to GitHub...";
-    saveBtn.disabled = true;
-
-    try {
-      file.modifiedCode = newCode;
-      if (file.modifiedPath) {
-        await saveFileToGitHub(file.modifiedPath, newCode, `Update edited code for ${file.name} by ${currentUser.name}`);
-      }
-      await saveStoredFilesToGitHub(files, `Update metadata for ${file.name}`);
-      alert('Edits successfully saved and committed to GitHub!');
-    } catch (err) {
-      alert(`Save failed: ${err.message}`);
-    } finally {
-      saveBtn.innerText = "Save Edits to GitHub";
-      saveBtn.disabled = false;
-    }
-  }
-
-  async function markAsDone() {
-    const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
-    if (file) { 
-      file.isMarked = true; 
-      await saveStoredFilesToGitHub(files, `Mark ${file.name} as done`);
-      alert('File marked as done on GitHub!'); 
-      showMenu(); 
-    }
-  }
-
-  async function markAsRead() {
-    const files = getStoredFiles(), file = files.find(f => String(f.id) === String(activeFileId));
-    if (file) { 
-      file.isRead = true; 
-      await saveStoredFilesToGitHub(files, `Mark ${file.name} as read`);
-      alert('File marked as read on GitHub!'); 
-      showMenu(); 
-    }
-  }
   </script>
 </body>
 </html>
