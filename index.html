@@ -15,6 +15,10 @@
       --accent-green: #238636;
       --accent-red: #da3633;
       --accent-orange: #d29922;
+      --diff-add-bg: rgba(46, 160, 67, 0.15);
+      --diff-add-text: #7ee787;
+      --diff-remove-bg: rgba(248, 81, 73, 0.15);
+      --diff-remove-text: #ff7b72;
     }
 
     * {
@@ -31,7 +35,7 @@
     }
 
     .container {
-      max-width: 1000px;
+      max-width: 1200px;
       margin: 0 auto;
     }
 
@@ -93,30 +97,17 @@
       cursor: pointer;
       font-size: 0.85rem;
       font-weight: 500;
-      transition: background-color 0.2s;
+      transition: opacity 0.2s;
     }
 
     .btn:hover {
-      opacity: 0.9;
+      opacity: 0.85;
     }
 
-    .btn-primary {
-      background-color: var(--accent-blue);
-      color: #000;
-    }
-
-    .btn-danger {
-      background-color: var(--accent-red);
-    }
-
-    .btn-warning {
-      background-color: var(--accent-orange);
-      color: #000;
-    }
-
-    .btn-success {
-      background-color: var(--accent-green);
-    }
+    .btn-primary { background-color: var(--accent-blue); color: #000; }
+    .btn-danger { background-color: var(--accent-red); color: #fff; }
+    .btn-warning { background-color: var(--accent-orange); color: #000; }
+    .btn-success { background-color: var(--accent-green); color: #fff; }
 
     .code-list {
       display: flex;
@@ -142,6 +133,7 @@
       font-family: monospace;
       font-size: 1rem;
       color: var(--accent-blue);
+      font-weight: bold;
     }
 
     .actions {
@@ -149,7 +141,7 @@
       gap: 0.5rem;
     }
 
-    pre {
+    pre.code-view {
       background-color: #010409;
       padding: 1rem;
       border-radius: 6px;
@@ -157,30 +149,77 @@
       font-family: monospace;
       font-size: 0.85rem;
       border: 1px solid var(--border-color);
+      max-height: 300px;
     }
 
-    .editor-container {
+    /* Combined Editor & Reviewer Workspace */
+    .combined-workspace {
       margin-top: 1rem;
       display: none;
+      border-top: 1px solid var(--border-color);
+      padding-top: 1rem;
+    }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .workspace-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .workspace-panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
     }
 
     textarea.code-editor {
       width: 100%;
-      height: 150px;
+      height: 250px;
       font-family: monospace;
-      margin-bottom: 0.5rem;
+      resize: vertical;
+      line-height: 1.4;
     }
 
-    .diff-container {
-      margin-top: 1rem;
-      padding: 1rem;
+    .diff-viewer {
       background-color: #010409;
-      border: 1px dashed var(--accent-orange);
+      border: 1px solid var(--border-color);
       border-radius: 6px;
-      display: none;
+      padding: 0.5rem 0;
+      height: 250px;
+      overflow-y: auto;
       font-family: monospace;
       font-size: 0.85rem;
+      line-height: 1.4;
       white-space: pre-wrap;
+    }
+
+    .diff-line {
+      padding: 0 0.75rem;
+    }
+
+    .diff-line.added {
+      background-color: var(--diff-add-bg);
+      color: var(--diff-add-text);
+    }
+
+    .diff-line.removed {
+      background-color: var(--diff-remove-bg);
+      color: var(--diff-remove-text);
     }
 
     .status-msg {
@@ -208,15 +247,15 @@
   <div class="container">
     <header>
       <div>
-        <h1>FixCode Management Console</h1>
+        <h1>FixCode Dashboard</h1>
         <div class="repo-info">
           Repository: <span id="repo-display"></span> | Branch: <span id="branch-display"></span>
         </div>
       </div>
       
       <div class="pat-container">
-        <input type="password" id="pat-input" placeholder="Enter GitHub PAT..." />
-        <button class="btn btn-primary" onclick="loadRepositoryContent()">Load Files</button>
+        <input type="password" id="pat-input" placeholder="Enter Personal Access Token (PAT)..." size="30" />
+        <button class="btn btn-primary" onclick="loadRepositoryContent()">Load Repository</button>
       </div>
     </header>
 
@@ -224,31 +263,30 @@
 
     <main>
       <div id="code-list" class="code-list">
-        <!-- Code items will render here dynamically -->
+        <!-- Code cards render here dynamically -->
       </div>
     </main>
   </div>
 
   <script>
-    // GitHub Repository Configuration
+    // GitHub Repository Configuration (Saved in Source Code)
     const GITHUB_CONFIG = {
       username: "sycrip",
       repo: "fixcode",
       branch: "main"
     };
 
-    // Store original content to compute changes/diffs
+    // Original content storage for computing diffs
     const originalContentMap = {};
 
-    // Initialize UI on load
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("repo-display").textContent = `${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}`;
       document.getElementById("branch-display").textContent = GITHUB_CONFIG.branch;
       
-      // Initial render with placeholder data
+      // Default initial view with placeholder files
       renderCodeList([
-        { path: "src/index.js", sha: "mock1", content: 'console.log("Hello, FixCode!");' },
-        { path: "src/utils.js", sha: "mock2", content: 'function add(a, b) {\n  return a + b;\n}' }
+        { path: "src/index.js", sha: "mock1", content: '// Welcome to FixCode\nconsole.log("Hello, World!");' },
+        { path: "src/utils.js", sha: "mock2", content: 'function calculateTotal(items) {\n  return items.reduce((a, b) => a + b, 0);\n}' }
       ]);
     });
 
@@ -264,7 +302,7 @@
       setTimeout(() => { statusBox.style.display = "none"; }, 5000);
     }
 
-    // Fetch files from GitHub REST API
+    // Fetch repository files via GitHub REST API
     async function loadRepositoryContent() {
       const pat = getPAT();
       if (!pat) {
@@ -287,14 +325,15 @@
         const data = await response.json();
         const fileItems = [];
 
-        // Fetch detailed content for code files
         for (const item of data) {
           if (item.type === "file") {
             const fileRes = await fetch(item.url, {
               headers: { "Authorization": `token ${pat}` }
             });
             const fileData = await fileRes.json();
-            const decodedContent = atob(fileData.content.replace(/\n/g, ''));
+            
+            // Handle UTF-8 decoding properly
+            const decodedContent = decodeURIComponent(escape(atob(fileData.content.replace(/\n/g, ''))));
             
             fileItems.push({
               path: item.path,
@@ -305,13 +344,13 @@
         }
 
         renderCodeList(fileItems);
-        showStatus("Repository content loaded successfully.");
+        showStatus("Repository files loaded successfully.");
       } catch (err) {
         showStatus(err.message, true);
       }
     }
 
-    // Render code cards into the DOM
+    // Render cards with combined Editor & Reviewer
     function renderCodeList(files) {
       const container = document.getElementById("code-list");
       container.innerHTML = "";
@@ -321,33 +360,95 @@
 
         const card = document.createElement("div");
         card.className = "code-card";
-        card.id = `card-${index}`;
 
         card.innerHTML = `
           <div class="card-header">
             <span class="file-path">${file.path}</span>
             <div class="actions">
               <button class="btn btn-danger" onclick="deleteCode('${file.path}', '${file.sha}')">Delete</button>
-              <button class="btn btn-warning" onclick="toggleEdit('${index}')">Edit</button>
-              <button class="btn btn-primary" onclick="reviewChange('${index}', '${file.path}')">Review Change</button>
+              <button class="btn btn-warning" onclick="toggleWorkspace('${index}')">Edit</button>
+              <button class="btn btn-primary" onclick="toggleWorkspace('${index}', true)">Review Change</button>
             </div>
           </div>
           
-          <pre id="view-${index}">${escapeHTML(file.content)}</pre>
+          <pre class="code-view" id="view-${index}">${escapeHTML(file.content)}</pre>
 
-          <div id="editor-container-${index}" class="editor-container">
-            <textarea id="editor-${index}" class="code-editor">${file.content}</textarea>
-            <button class="btn btn-success" onclick="saveEdit('${file.path}', '${file.sha}', '${index}')">Save to GitHub</button>
+          <!-- Combined Editor & Reviewer Workspace -->
+          <div id="workspace-${index}" class="combined-workspace">
+            <div class="workspace-grid">
+              <div class="workspace-panel">
+                <div class="panel-title">Editor</div>
+                <textarea id="editor-${index}" class="code-editor" oninput="updateLiveDiff('${index}', '${file.path}')">${file.content}</textarea>
+              </div>
+              <div class="workspace-panel">
+                <div class="panel-title">Review Changes (Live Diff)</div>
+                <div id="diff-view-${index}" class="diff-viewer"></div>
+              </div>
+            </div>
+            <button class="btn btn-success" onclick="saveEdit('${file.path}', '${file.sha}', '${index}')">Save Changes to GitHub</button>
           </div>
-
-          <div id="diff-${index}" class="diff-container"></div>
         `;
 
         container.appendChild(card);
+        updateLiveDiff(index, file.path);
       });
     }
 
-    // 1. Action: Delete
+    // Toggle combined Editor & Reviewer workspace
+    function toggleWorkspace(index, focusReview = false) {
+      const workspace = document.getElementById(`workspace-${index}`);
+      const isVisible = workspace.style.display === "block";
+
+      if (!isVisible) {
+        workspace.style.display = "block";
+        if (focusReview) {
+          document.getElementById(`diff-view-${index}`).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      } else if (!focusReview) {
+        workspace.style.display = "none";
+      }
+    }
+
+    // Live diff computation between original and edited code
+    function updateLiveDiff(index, path) {
+      const original = originalContentMap[path] || "";
+      const current = document.getElementById(`editor-${index}`).value;
+      const diffContainer = document.getElementById(`diff-view-${index}`);
+
+      const origLines = original.split("\n");
+      const currLines = current.split("\n");
+
+      let diffHTML = "";
+      let hasChanges = false;
+
+      const maxLines = Math.max(origLines.length, currLines.length);
+      for (let i = 0; i < maxLines; i++) {
+        const origLine = origLines[i];
+        const currLine = currLines[i];
+
+        if (origLine === currLine) {
+          if (origLine !== undefined) {
+            diffHTML += `<div class="diff-line"> ${escapeHTML(origLine)}</div>`;
+          }
+        } else {
+          hasChanges = true;
+          if (origLine !== undefined) {
+            diffHTML += `<div class="diff-line removed">- ${escapeHTML(origLine)}</div>`;
+          }
+          if (currLine !== undefined) {
+            diffHTML += `<div class="diff-line added">+ ${escapeHTML(currLine)}</div>`;
+          }
+        }
+      }
+
+      if (!hasChanges) {
+        diffContainer.innerHTML = '<div class="diff-line" style="color: var(--text-muted); font-style: italic;">No changes made yet. Type in the editor to review differences.</div>';
+      } else {
+        diffContainer.innerHTML = diffHTML;
+      }
+    }
+
+    // Button Action 1: Delete File
     async function deleteCode(path, sha) {
       if (!confirm(`Are you sure you want to delete ${path}?`)) return;
 
@@ -367,31 +468,22 @@
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            message: `Delete ${path} via FixCode App`,
+            message: `Delete ${path} via FixCode Console`,
             sha: sha,
             branch: GITHUB_CONFIG.branch
           })
         });
 
-        if (!response.ok) throw new Error("Failed to delete file.");
+        if (!response.ok) throw new Error("Failed to delete file on GitHub.");
 
         showStatus(`Deleted ${path} successfully.`);
-        loadRepositoryContent(); // Reload UI
+        loadRepositoryContent();
       } catch (err) {
         showStatus(err.message, true);
       }
     }
 
-    // 2. Action: Edit Toggle & Save
-    function toggleEdit(index) {
-      const editor = document.getElementById(`editor-container-${index}`);
-      const view = document.getElementById(`view-${index}`);
-      const isEditing = editor.style.display === "block";
-
-      editor.style.display = isEditing ? "none" : "block";
-      view.style.display = isEditing ? "block" : "none";
-    }
-
+    // Button Action 2 & 3: Save Edits to GitHub
     async function saveEdit(path, sha, index) {
       const pat = getPAT();
       if (!pat) {
@@ -402,6 +494,9 @@
       const newContent = document.getElementById(`editor-${index}`).value;
       const url = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/contents/${path}`;
 
+      // Handle UTF-8 encoding properly for Base64
+      const encodedContent = btoa(unescape(encodeURIComponent(newContent)));
+
       try {
         const response = await fetch(url, {
           method: "PUT",
@@ -410,45 +505,20 @@
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            message: `Update ${path} via FixCode App`,
-            content: btoa(newContent),
+            message: `Update ${path} via FixCode Console`,
+            content: encodedContent,
             sha: sha,
             branch: GITHUB_CONFIG.branch
           })
         });
 
-        if (!response.ok) throw new Error("Failed to update file.");
+        if (!response.ok) throw new Error("Failed to update file on GitHub.");
 
-        showStatus(`Saved changes for ${path}.`);
+        showStatus(`Saved changes for ${path} successfully.`);
         loadRepositoryContent();
       } catch (err) {
         showStatus(err.message, true);
       }
-    }
-
-    // 3. Action: Review Change
-    function reviewChange(index, path) {
-      const diffBox = document.getElementById(`diff-${index}`);
-      const currentContent = document.getElementById(`editor-${index}`) 
-        ? document.getElementById(`editor-${index}`).value 
-        : originalContentMap[path];
-      
-      const original = originalContentMap[path] || "";
-
-      if (diffBox.style.display === "block") {
-        diffBox.style.display = "none";
-        return;
-      }
-
-      if (original === currentContent) {
-        diffBox.innerHTML = "<em>No changes detected from original file.</em>";
-      } else {
-        diffBox.innerHTML = `<strong>Changes comparison:</strong>\n\n` +
-          `<span style="color: var(--accent-red);">- Original (${original.length} chars)</span>\n` +
-          `<span style="color: var(--accent-green);">+ Modified (${currentContent.length} chars)</span>`;
-      }
-
-      diffBox.style.display = "block";
     }
 
     function escapeHTML(str) {
