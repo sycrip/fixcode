@@ -58,10 +58,15 @@
     header {
       background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color);
       padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 12px;
     }
     .user-badge {
       display: inline-block; padding: 2px 8px; border-radius: 4px;
       font-size: 0.75rem; font-weight: bold; background: var(--accent-blue); color: white;
+    }
+    .role-select {
+      background: var(--bg-editor); color: #ffffff; border: 1px solid var(--border-color);
+      padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; outline: none; margin-left: 8px;
     }
 
     /* Common UI */
@@ -184,29 +189,10 @@
 </head>
 <body>
 
-  <!-- LOGIN OVERLAY -->
-  <div id="loginOverlay" class="modal-overlay">
-    <div class="modal-card">
-      <h2>VS Code Review Sign In</h2>
-      <form id="loginForm">
-        <div class="form-group">
-          <label>Username</label>
-          <input type="text" id="usernameInput" placeholder="Enter username" required>
-        </div>
-        <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="passwordInput" placeholder="Enter password" required>
-        </div>
-        <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">Login</button>
-        <div id="loginErrorMsg" style="color: #f85149; font-size: 0.8rem; margin-top: 10px; text-align: center;" class="hidden">Invalid credentials</div>
-      </form>
-    </div>
-  </div>
-
   <!-- GITHUB SETTINGS MODAL -->
   <div id="githubModal" class="modal-overlay hidden">
     <div class="modal-card">
-      <h2>GitHub Repository Configuration</h2>
+      <h2>GitHub Repository & PAT Configuration</h2>
       <form id="githubForm">
         <div class="form-group">
           <label>GitHub Owner / Username</label>
@@ -233,16 +219,20 @@
     </div>
   </div>
 
-  <!-- MAIN APP -->
-  <div id="appContent" class="hidden">
+  <!-- MAIN APP WORKSPACE -->
+  <div id="appContent">
     <header>
-      <div>
-        <strong id="currentUserSpan" style="color: #ffffff;">-</strong>
-        <span id="userRoleBadge" class="user-badge">-</span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <strong id="currentUserSpan" style="color: #ffffff;">Unified Workspace</strong>
+        <span id="userRoleBadge" class="user-badge">Marker View</span>
+        <label style="font-size: 0.85rem; color: var(--text-muted); margin-left: 10px;">Switch User Mode:</label>
+        <select id="roleSelector" class="role-select" onchange="switchUserRole(this.value)">
+          <option value="Marker">Marker (Edit & Mark Done)</option>
+          <option value="Uploader">Viewer / Uploader (Upload & Review Diff)</option>
+        </select>
       </div>
       <div>
-        <button class="btn btn-secondary" style="margin-right: 8px;" onclick="openGitHubModal()">⚙ GitHub Settings</button>
-        <button class="btn btn-secondary" onclick="logout()">Logout</button>
+        <button class="btn btn-secondary" onclick="openGitHubModal()">⚙ GitHub Settings / PAT</button>
       </div>
     </header>
 
@@ -312,11 +302,11 @@
             
             <!-- Real-Time Editor Wrapper (For Markers) -->
             <div id="editorWrapper" class="editor-wrapper hidden">
-              <div id="highlightLayer" class="highlightLayer" aria-hidden="true"></div>
+              <div id="highlightLayer" class="highlight-layer" aria-hidden="true"></div>
               <textarea id="rightCodeEditor" class="code-editor" spellcheck="false"></textarea>
             </div>
 
-            <!-- Diff Viewer (For Firewater) -->
+            <!-- Diff Viewer (For Viewers/Uploaders) -->
             <div id="rightDiffView" class="code-container hidden"></div>
           </div>
         </div>
@@ -325,16 +315,34 @@
   </div>
 
   <script>
-  const CORRECT_HASH = "a4dd5658ec0219465b705ea7c7435d9786a3c66d4f448cabd7488dabceafb699";
-
-  const ACCOUNTS = {
-    'QwertyPi': { name: 'QwertyPi', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: CORRECT_HASH },
-    'WongChun1234': { name: 'WongChun1234', role: 'Marker', canMark: true, canUpload: false, canRead: false, hash: CORRECT_HASH },
-    'firewater': { name: 'firewater', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true, hash: CORRECT_HASH }
+  // Unified User Profile Setup
+  const USER_MODES = {
+    'Marker': { name: 'Marker View', role: 'Marker', canMark: true, canUpload: false, canRead: false },
+    'Uploader': { name: 'Viewer / Uploader View', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true }
   };
 
-  let currentUser = null;
+  let currentUser = USER_MODES['Marker'];
   let activeFileId = null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    switchUserRole('Marker');
+    showMenu();
+  });
+
+  function switchUserRole(roleKey) {
+    currentUser = USER_MODES[roleKey] || USER_MODES['Marker'];
+    document.getElementById('currentUserSpan').innerText = currentUser.name;
+    document.getElementById('userRoleBadge').innerText = currentUser.role;
+
+    document.getElementById('uploadSection').classList.toggle('hidden', !currentUser.canUpload);
+    
+    // Refresh active editor state if open
+    if (!document.getElementById('editorView').classList.contains('hidden') && activeFileId) {
+      openFileEditor(activeFileId);
+    } else {
+      renderFileList();
+    }
+  }
 
   /* --- GITHUB REST API ENGINE --- */
   function getGitHubSettings() {
@@ -367,7 +375,7 @@
       branch: document.getElementById('ghBranchInput').value.trim() || 'main',
       token: document.getElementById('ghTokenInput').value.trim()
     });
-    alert('GitHub Configuration Saved!');
+    alert('GitHub & PAT Configuration Saved!');
     closeGitHubModal();
     syncMenuFromRepo();
   });
@@ -485,91 +493,7 @@
     return result;
   }
 
-  function sha256(ascii) {
-    function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
-    var mathPow = Math.pow, maxWord = mathPow(2, 32), lengthProperty = 'length', i, j, result = '';
-    var words = [], asciiLength = ascii[lengthProperty] * 8;
-    var hash = [], k = [], primeCounter = 0, isCandidate = {};
-    for (var candidate = 2; primeCounter < 64; candidate++) {
-      if (!isCandidate[candidate]) {
-        for (i = 0; i < 320; i += candidate) isCandidate[i] = true;
-        if (primeCounter < 8) hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
-        k[primeCounter] = (mathPow(candidate, 1/3) * maxWord) | 0;
-        primeCounter++;
-      }
-    }
-    ascii += '\x80';
-    while (ascii[lengthProperty] % 64 - 56) ascii += '\x00';
-    for (i = 0; i < ascii[lengthProperty]; i++) {
-      j = ascii.charCodeAt(i);
-      if (j >> 8) return;
-      words[i >> 2] |= j << ((3 - i % 4) * 8);
-    }
-    words[words[lengthProperty]] = ((asciiLength / maxWord) | 0);
-    words[words[lengthProperty]] = (asciiLength);
-    for (j = 0; j < words[lengthProperty];) {
-      var w = words.slice(j, j += 16), oldHash = hash;
-      hash = hash.slice(0, 8);
-      for (i = 0; i < 64; i++) {
-        var w15 = w[i - 15], w2 = w[i - 2];
-        var a = hash[0], e = hash[4];
-        var temp1 = hash[7]
-          + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
-          + ((e & hash[5]) ^ ((~e) & hash[6]))
-          + k[i]
-          + (w[i] = (i < 16) ? w[i] : (
-              w[i - 16]
-              + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
-              + w[i - 7]
-              + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
-            ) | 0
-          );
-        var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
-          + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
-        hash = [(temp1 + temp2) | 0].concat(hash);
-        hash[4] = (hash[4] + temp1) | 0;
-      }
-      for (i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
-    }
-    for (i = 0; i < 8; i++) {
-      for (j = 3; j >= 0; j--) {
-        var b = (hash[i] >> (j * 8)) & 255;
-        result += (b < 16 ? '0' : '') + b.toString(16);
-      }
-    }
-    return result;
-  }
-
-  /* --- AUTH & NAVIGATION --- */
-  document.getElementById('loginForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const uInput = document.getElementById('usernameInput').value.trim();
-    const pInput = document.getElementById('passwordInput').value.trim();
-
-    const account = ACCOUNTS[uInput];
-    if (account && sha256(pInput) === account.hash) {
-      currentUser = account;
-      document.getElementById('currentUserSpan').innerText = currentUser.name;
-      document.getElementById('userRoleBadge').innerText = currentUser.role;
-
-      document.getElementById('loginOverlay').classList.add('hidden');
-      document.getElementById('appContent').classList.remove('hidden');
-
-      document.getElementById('uploadSection').classList.toggle('hidden', !currentUser.canUpload);
-      showMenu();
-      return;
-    }
-    document.getElementById('loginErrorMsg').classList.remove('hidden');
-  });
-
-  function logout() {
-    currentUser = null;
-    document.getElementById('loginForm').reset();
-    document.getElementById('loginErrorMsg').classList.add('hidden');
-    document.getElementById('loginOverlay').classList.remove('hidden');
-    document.getElementById('appContent').classList.add('hidden');
-  }
-
+  /* --- NAVIGATION & FILES --- */
   async function showMenu() {
     document.getElementById('menuView').classList.remove('hidden');
     document.getElementById('editorView').classList.add('hidden');
@@ -600,7 +524,6 @@
     const path = 'code/list.json';
     let url = path;
 
-    // Use raw GitHub endpoint if configured
     if (config.owner && config.repo) {
       url = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.branch}/${path}?t=${Date.now()}`;
     }
@@ -642,7 +565,6 @@
       const name = document.getElementById('codeNameInput').value.trim();
       const tag = document.getElementById('codeTagInput').value.trim();
 
-      // Commit code files to GitHub
       await saveFileToGitHub(origPath, code, `Add original code: ${name}`);
       await saveFileToGitHub(modPath, code, `Add modified code: ${name}`);
 
