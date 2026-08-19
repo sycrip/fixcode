@@ -6,7 +6,7 @@
     "originalPath": "code/1787123504329_original.cpp",
     "modifiedPath": "code/1787123504329_modified.cpp",
     "originalCode": "#include <iostream>\n\nint main() {\n    int a, b;\n    std::cin >> a >> b;\n    std::cout << a + b << std::endl;\n    return 0;\n}\n",
-    "modifiedCode": "#include <iostream>\n\nint main() {\n    int a, b;\n    for (int i = 1; i <= 10; i++)\n        a = a + 1;\n    std::cin >> a >> b;\n    std::cout << a + b << std::endl;\n    return 0;\n}\n",
+    "modifiedCode": "#include <iostream>\n\nint main() {\n    int a, b;\n    for (int i = 1; i <= 10; i++)\n        a = a + 1;\n        \n        \n        \n    std::cin >> a >> b;\n    std::cout << a + b << std::endl;\n    return 0;\n}\n",
     "isMarked": true,
     "isRead": false
   }
