@@ -35,6 +35,7 @@
       --badge-read: #388bfd;
       --btn-danger: #a40e0e;
       --btn-danger-hover: #be1111;
+      --btn-warning: #d29922;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
@@ -60,13 +61,12 @@
       padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
       flex-wrap: wrap; gap: 12px;
     }
-    .user-badge {
-      display: inline-block; padding: 2px 8px; border-radius: 4px;
-      font-size: 0.75rem; font-weight: bold; background: var(--accent-blue); color: white;
+
+    .repo-tag {
+      font-size: 0.85rem; color: var(--text-muted);
     }
-    .role-select {
-      background: var(--bg-editor); color: #ffffff; border: 1px solid var(--border-color);
-      padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; outline: none; margin-left: 8px;
+    .repo-tag span {
+      color: var(--accent-blue); font-weight: bold; font-family: monospace;
     }
 
     /* Common UI */
@@ -83,12 +83,14 @@
     .btn {
       background: var(--accent-blue); color: white; border: none; padding: 8px 16px;
       border-radius: 4px; font-size: 0.85rem; cursor: pointer; font-weight: 600;
+      transition: opacity 0.2s;
     }
-    .btn:hover { background: var(--accent-blue-hover); }
+    .btn:hover { opacity: 0.9; }
     .btn-secondary { background: #3a3d41; }
     .btn-secondary:hover { background: #45494e; }
     .btn-success { background: #238636; }
     .btn-success:hover { background: #2ea043; }
+    .btn-warning { background: var(--btn-warning); color: #000; }
     .btn-danger { background: var(--btn-danger); }
     .btn-danger:hover { background: var(--btn-danger-hover); }
 
@@ -101,7 +103,7 @@
     .file-item {
       display: flex; justify-content: space-between; align-items: center;
       padding: 12px; border-bottom: 1px solid var(--border-color); background: var(--bg-sidebar);
-      margin-bottom: 8px; border-radius: 4px;
+      margin-bottom: 8px; border-radius: 4px; flex-wrap: wrap; gap: 10px;
     }
     .file-tag-pill { background: #333333; color: #9cdcfe; border: 1px solid #454545; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
 
@@ -189,31 +191,22 @@
 </head>
 <body>
 
-  <!-- GITHUB SETTINGS MODAL -->
-  <div id="githubModal" class="modal-overlay hidden">
+  <!-- PAT CONFIGURATION MODAL -->
+  <div id="patModal" class="modal-overlay hidden">
     <div class="modal-card">
-      <h2>GitHub Repository & PAT Configuration</h2>
-      <form id="githubForm">
+      <h2>GitHub Personal Access Token</h2>
+      <form id="patForm">
         <div class="form-group">
-          <label>GitHub Owner / Username</label>
-          <input type="text" id="ghOwnerInput" placeholder="e.g. your-username" required>
-        </div>
-        <div class="form-group">
-          <label>Repository Name</label>
-          <input type="text" id="ghRepoInput" placeholder="e.g. my-code-review-repo" required>
-        </div>
-        <div class="form-group">
-          <label>Branch Name</label>
-          <input type="text" id="ghBranchInput" value="main" required>
-        </div>
-        <div class="form-group">
-          <label>Personal Access Token (PAT)</label>
+          <label>Enter Personal Access Token (PAT)</label>
           <input type="password" id="ghTokenInput" placeholder="ghp_xxxxxxxxxxxx" required>
-          <small style="color: var(--text-muted); font-size: 0.75rem;">Requires <code>contents: write</code> permission.</small>
+          <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+            Repository set to: <code>sycrip/fixcode</code> (branch: <code>main</code>).<br>
+            Requires token with <code>contents: write</code> permission.
+          </small>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 16px;">
-          <button type="submit" class="btn btn-success" style="flex: 1;">Save Configuration</button>
-          <button type="button" class="btn btn-secondary" onclick="closeGitHubModal()">Cancel</button>
+          <button type="submit" class="btn btn-success" style="flex: 1;">Save Token</button>
+          <button type="button" class="btn btn-secondary" onclick="closePatModal()">Cancel</button>
         </div>
       </form>
     </div>
@@ -222,24 +215,19 @@
   <!-- MAIN APP WORKSPACE -->
   <div id="appContent">
     <header>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <strong id="currentUserSpan" style="color: #ffffff;">Unified Workspace</strong>
-        <span id="userRoleBadge" class="user-badge">Marker View</span>
-        <label style="font-size: 0.85rem; color: var(--text-muted); margin-left: 10px;">Switch User Mode:</label>
-        <select id="roleSelector" class="role-select" onchange="switchUserRole(this.value)">
-          <option value="Marker">Marker (Edit & Mark Done)</option>
-          <option value="Uploader">Viewer / Uploader (Upload & Review Diff)</option>
-        </select>
+      <div>
+        <strong style="color: #ffffff; font-size: 1.1rem; margin-right: 12px;">VS Code C++ Code Review</strong>
+        <span class="repo-tag">Target: <span id="repoNameDisplay">sycrip/fixcode</span> (branch: <span id="branchNameDisplay">main</span>)</span>
       </div>
       <div>
-        <button class="btn btn-secondary" onclick="openGitHubModal()">⚙ GitHub Settings / PAT</button>
+        <button class="btn btn-secondary" onclick="openPatModal()">🔑 PAT Settings</button>
       </div>
     </header>
 
     <main class="container">
       <!-- DASHBOARD / MENU VIEW -->
       <div id="menuView">
-        <div id="uploadSection" class="card hidden">
+        <div id="uploadSection" class="card">
           <h3 style="margin-bottom: 12px; color: #ffffff;">Upload C++ File or Source Code</h3>
           <form id="uploadForm">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
@@ -279,7 +267,6 @@
             <button id="saveEditsBtn" class="btn btn-success" onclick="saveEdits()">Save Edits to GitHub</button>
             <button id="markDoneBtn" class="btn hidden" style="background: #8957e5;" onclick="markAsDone()">Mark as Done</button>
             <button id="markReadBtn" class="btn btn-secondary hidden" onclick="markAsRead()">Mark as Read</button>
-            <button id="deleteActiveFileBtn" class="btn btn-danger hidden" onclick="deleteActiveFile()">Delete File</button>
           </div>
         </div>
 
@@ -300,13 +287,13 @@
           <div class="editor-pane">
             <div id="rightPaneHeader" class="pane-header">EDIT CODE</div>
             
-            <!-- Real-Time Editor Wrapper (For Markers) -->
+            <!-- Real-Time Editor Wrapper (Edit Mode for Marker) -->
             <div id="editorWrapper" class="editor-wrapper hidden">
               <div id="highlightLayer" class="highlight-layer" aria-hidden="true"></div>
               <textarea id="rightCodeEditor" class="code-editor" spellcheck="false"></textarea>
             </div>
 
-            <!-- Diff Viewer (For Viewers/Uploaders) -->
+            <!-- Diff Viewer (Review Mode for Viewer/Uploader) -->
             <div id="rightDiffView" class="code-container hidden"></div>
           </div>
         </div>
@@ -315,76 +302,53 @@
   </div>
 
   <script>
-  // Unified User Profile Setup
-  const USER_MODES = {
-    'Marker': { name: 'Marker View', role: 'Marker', canMark: true, canUpload: false, canRead: false },
-    'Uploader': { name: 'Viewer / Uploader View', role: 'Viewer/Uploader', canMark: false, canUpload: true, canRead: true }
+  // Hardcoded Repository Information
+  const GITHUB_CONFIG = {
+    owner: "sycrip",
+    repo: "fixcode",
+    branch: "main"
   };
 
-  let currentUser = USER_MODES['Marker'];
   let activeFileId = null;
 
   document.addEventListener('DOMContentLoaded', () => {
-    switchUserRole('Marker');
+    document.getElementById('repoNameDisplay').innerText = `${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}`;
+    document.getElementById('branchNameDisplay').innerText = GITHUB_CONFIG.branch;
     showMenu();
   });
 
-  function switchUserRole(roleKey) {
-    currentUser = USER_MODES[roleKey] || USER_MODES['Marker'];
-    document.getElementById('currentUserSpan').innerText = currentUser.name;
-    document.getElementById('userRoleBadge').innerText = currentUser.role;
-
-    document.getElementById('uploadSection').classList.toggle('hidden', !currentUser.canUpload);
-    
-    // Refresh active editor state if open
-    if (!document.getElementById('editorView').classList.contains('hidden') && activeFileId) {
-      openFileEditor(activeFileId);
-    } else {
-      renderFileList();
-    }
+  /* --- PAT CONFIGURATION ENGINE --- */
+  function getGitHubPAT() {
+    return localStorage.getItem('gh_pat') || '';
   }
 
-  /* --- GITHUB REST API ENGINE --- */
-  function getGitHubSettings() {
-    const data = localStorage.getItem('gh_config');
-    return data ? JSON.parse(data) : { owner: '', repo: '', branch: 'main', token: '' };
+  function saveGitHubPAT(token) {
+    localStorage.setItem('gh_pat', token);
   }
 
-  function saveGitHubSettings(config) {
-    localStorage.setItem('gh_config', JSON.stringify(config));
+  function openPatModal() {
+    document.getElementById('ghTokenInput').value = getGitHubPAT();
+    document.getElementById('patModal').classList.remove('hidden');
   }
 
-  function openGitHubModal() {
-    const config = getGitHubSettings();
-    document.getElementById('ghOwnerInput').value = config.owner || '';
-    document.getElementById('ghRepoInput').value = config.repo || '';
-    document.getElementById('ghBranchInput').value = config.branch || 'main';
-    document.getElementById('ghTokenInput').value = config.token || '';
-    document.getElementById('githubModal').classList.remove('hidden');
+  function closePatModal() {
+    document.getElementById('patModal').classList.add('hidden');
   }
 
-  function closeGitHubModal() {
-    document.getElementById('githubModal').classList.add('hidden');
-  }
-
-  document.getElementById('githubForm').addEventListener('submit', function(e) {
+  document.getElementById('patForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    saveGitHubSettings({
-      owner: document.getElementById('ghOwnerInput').value.trim(),
-      repo: document.getElementById('ghRepoInput').value.trim(),
-      branch: document.getElementById('ghBranchInput').value.trim() || 'main',
-      token: document.getElementById('ghTokenInput').value.trim()
-    });
-    alert('GitHub & PAT Configuration Saved!');
-    closeGitHubModal();
+    const token = document.getElementById('ghTokenInput').value.trim();
+    saveGitHubPAT(token);
+    alert('Personal Access Token saved successfully!');
+    closePatModal();
     syncMenuFromRepo();
   });
 
   async function getGitHubSha(path) {
-    const { owner, repo, branch, token } = getGitHubSettings();
-    if (!owner || !repo || !token) return null;
+    const token = getGitHubPAT();
+    if (!token) return null;
     
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}?ref=${GITHUB_CONFIG.branch}`;
     try {
       const res = await fetch(url, {
         headers: {
@@ -403,14 +367,14 @@
   }
 
   async function saveFileToGitHub(path, content, commitMessage) {
-    const { owner, repo, branch, token } = getGitHubSettings();
-    if (!owner || !repo || !token) {
-      openGitHubModal();
-      throw new Error("GitHub repository settings or token are missing. Please complete setup.");
+    const token = getGitHubPAT();
+    if (!token) {
+      openPatModal();
+      throw new Error("GitHub Personal Access Token is missing. Please enter your PAT.");
     }
 
     const sha = await getGitHubSha(path);
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}`;
     
     // Support UTF-8 encoding safely
     const encodedContent = btoa(unescape(encodeURIComponent(content)));
@@ -418,7 +382,7 @@
     const body = {
       message: commitMessage,
       content: encodedContent,
-      branch: branch
+      branch: GITHUB_CONFIG.branch
     };
     if (sha) body.sha = sha;
 
@@ -440,13 +404,13 @@
   }
 
   async function deleteFileFromGitHub(path, commitMessage) {
-    const { owner, repo, branch, token } = getGitHubSettings();
-    if (!owner || !repo || !token) return;
+    const token = getGitHubPAT();
+    if (!token) return;
 
     const sha = await getGitHubSha(path);
     if (!sha) return;
 
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}`;
     await fetch(url, {
       method: 'DELETE',
       headers: {
@@ -457,12 +421,12 @@
       body: JSON.stringify({
         message: commitMessage,
         sha: sha,
-        branch: branch
+        branch: GITHUB_CONFIG.branch
       })
     });
   }
 
-  /* --- CORE UTILITIES --- */
+  /* --- CORE UTILITIES & SYNTAX HIGHLIGHTING --- */
   function escapeHtml(str) {
     if (!str) return "";
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -493,7 +457,7 @@
     return result;
   }
 
-  /* --- NAVIGATION & FILES --- */
+  /* --- NAVIGATION & FILE LIST --- */
   async function showMenu() {
     document.getElementById('menuView').classList.remove('hidden');
     document.getElementById('editorView').classList.add('hidden');
@@ -520,13 +484,8 @@
   }
 
   async function syncMenuFromRepo() {
-    const config = getGitHubSettings();
     const path = 'code/list.json';
-    let url = path;
-
-    if (config.owner && config.repo) {
-      url = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.branch}/${path}?t=${Date.now()}`;
-    }
+    const url = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${path}?t=${Date.now()}`;
 
     try {
       const response = await fetch(url);
@@ -584,7 +543,7 @@
       await saveStoredFilesToGitHub(files, `Update file list for: ${name}`);
       this.reset();
       renderFileList();
-      alert('Code successfully committed to GitHub under code/ directory!');
+      alert('Code successfully committed to GitHub!');
     } catch (err) {
       alert(`Error uploading file: ${err.message}`);
     } finally {
@@ -609,17 +568,10 @@
     }
   }
 
-  function deleteActiveFile() { if (activeFileId) { deleteFile(activeFileId); showMenu(); } }
-
   function renderFileList() {
     const files = getStoredFiles();
     const container = document.getElementById('fileListContainer');
     if (!files.length) return container.innerHTML = '<p style="color: var(--text-muted);">No files found in code/ directory. Click Sync or upload a new file.</p>';
-
-    files.sort((a, b) => currentUser.role === 'Marker' 
-      ? (a.isMarked === b.isMarked ? 0 : a.isMarked ? 1 : -1) 
-      : ((a.isMarked && !a.isRead ? 1 : !a.isMarked ? 2 : 3) - (b.isMarked && !b.isRead ? 1 : !b.isMarked ? 2 : 3))
-    );
 
     container.innerHTML = files.map(f => `
       <div class="file-item">
@@ -629,16 +581,18 @@
           ${f.isMarked ? '<span class="status-tag tag-marked">Marked as Done</span>' : '<span class="status-tag tag-pending">Pending</span>'}
           ${f.isRead ? '<span class="status-tag tag-read">Read</span>' : ''}
         </div>
+        <!-- 3 Required Action Buttons Per Code Item -->
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-secondary" onclick="openFileEditor('${f.id}')">Open & View</button>
-          ${currentUser.canUpload ? `<button class="btn btn-danger" onclick="deleteFile('${f.id}', event)">Delete</button>` : ''}
+          <button class="btn btn-danger" onclick="deleteFile('${f.id}', event)">Delete</button>
+          <button class="btn btn-warning" onclick="openFileEditor('${f.id}', 'edit')">Edit (Marker)</button>
+          <button class="btn" onclick="openFileEditor('${f.id}', 'review')">Review Change (Viewer)</button>
         </div>
       </div>
     `).join('');
   }
 
   /* --- EDITOR ENGINE & SAVING --- */
-  async function openFileEditor(id) {
+  async function openFileEditor(id, mode = 'edit') {
     const files = getStoredFiles();
     const file = files.find(f => String(f.id) === String(id));
     if (!file) return;
@@ -651,10 +605,7 @@
     let modCode = file.modifiedCode || "";
 
     if (file.originalPath && file.modifiedPath) {
-      const config = getGitHubSettings();
-      const getRawUrl = path => (config.owner && config.repo) 
-        ? `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.branch}/${path}?t=${Date.now()}`
-        : path;
+      const getRawUrl = path => `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${path}?t=${Date.now()}`;
 
       try {
         const [origRes, modRes] = await Promise.all([
@@ -674,8 +625,8 @@
     const diffView = document.getElementById('rightDiffView');
     const header = document.getElementById('rightPaneHeader');
 
-    if (currentUser.canMark) {
-      header.innerText = "EDIT CODE";
+    if (mode === 'edit') {
+      header.innerText = "EDIT CODE (MARKER)";
       editorWrap.classList.remove('hidden');
       diffView.classList.add('hidden');
       
@@ -685,16 +636,14 @@
       document.getElementById('saveEditsBtn').classList.remove('hidden');
       document.getElementById('markDoneBtn').classList.remove('hidden');
       document.getElementById('markReadBtn').classList.add('hidden');
-      document.getElementById('deleteActiveFileBtn').classList.add('hidden');
     } else {
-      header.innerText = "CODE COMPARISON RESULT";
+      header.innerText = "CODE COMPARISON RESULT (VIEWER)";
       editorWrap.classList.add('hidden');
       diffView.classList.remove('hidden');
 
       document.getElementById('saveEditsBtn').classList.add('hidden');
       document.getElementById('markDoneBtn').classList.add('hidden');
       document.getElementById('markReadBtn').classList.remove('hidden');
-      document.getElementById('deleteActiveFileBtn').classList.remove('hidden');
 
       renderComparisonResult(origCode, modCode);
     }
@@ -801,7 +750,7 @@
     try {
       file.modifiedCode = newCode;
       if (file.modifiedPath) {
-        await saveFileToGitHub(file.modifiedPath, newCode, `Update edited code for ${file.name} by ${currentUser.name}`);
+        await saveFileToGitHub(file.modifiedPath, newCode, `Update edited code for ${file.name}`);
       }
       await saveStoredFilesToGitHub(files, `Update metadata for ${file.name}`);
       alert('Edits successfully saved and committed to GitHub!');
