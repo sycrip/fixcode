@@ -1,5 +1,5 @@
 #include<bits/stdc++.h>
-usiddf namespace std;
+using namespace std;
 int main()
 {
     int a = 1;
