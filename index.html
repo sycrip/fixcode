@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VS Code C++ Code Review Platform</title>
   <style>
-    /* VS Code Default Dark+ Core Palette */
     :root {
       --bg-dark: #181818;
       --bg-sidebar: #1f1f1f;
@@ -17,16 +16,13 @@
       --accent-blue: #007acc;
       --accent-blue-hover: #0062a3;
       
-      /* Unified Code Typography */
       --code-font: 'Consolas', 'Monaco', 'Courier New', Courier, monospace;
       --code-font-size: 13px;
       --code-line-height: 19px;
 
-      /* Diff Highlights */
       --diff-del-bg: rgba(248, 81, 73, 0.18);
       --diff-add-bg: rgba(46, 160, 67, 0.22);
       
-      /* VS Code C++ Syntax Palette */
       --syn-keyword: #569cd6;
       --syn-control: #c586c0;
       --syn-string: #ce9178;
@@ -48,7 +44,6 @@
 
     .hidden { display: none !important; }
 
-    /* Modals */
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
       display: flex; align-items: center; justify-content: center; z-index: 1000;
@@ -60,21 +55,15 @@
     }
     .modal-card h2 { margin-bottom: 20px; font-size: 1.3rem; text-align: center; color: #ffffff; }
 
-    /* Header */
     header {
       background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color);
       padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
       flex-wrap: wrap; gap: 12px;
     }
 
-    .repo-tag {
-      font-size: 0.85rem; color: var(--text-muted);
-    }
-    .repo-tag span {
-      color: var(--accent-blue); font-weight: bold; font-family: monospace;
-    }
+    .repo-tag { font-size: 0.85rem; color: var(--text-muted); }
+    .repo-tag span { color: var(--accent-blue); font-weight: bold; font-family: monospace; }
 
-    /* Common UI */
     .container { max-width: 1400px; margin: 20px auto; padding: 0 16px; }
     .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 4px; padding: 20px; margin-bottom: 20px; }
     
@@ -99,7 +88,6 @@
     .btn-danger { background: var(--btn-danger); }
     .btn-danger:hover { background: var(--btn-danger-hover); }
 
-    /* Badges & File List */
     .status-tag { padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600; margin-left: 6px; }
     .tag-marked { background: var(--badge-done); color: white; }
     .tag-pending { background: var(--badge-pending); color: white; }
@@ -112,94 +100,57 @@
     }
     .file-tag-pill { background: #333333; color: #9cdcfe; border: 1px solid #454545; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
 
-    /* Editor Layout */
     .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
     .editor-pane { background: var(--bg-editor); border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; }
     .pane-header { background: #252526; padding: 8px 12px; border-bottom: 1px solid var(--border-color); font-size: 0.8rem; font-weight: bold; color: var(--text-muted); letter-spacing: 0.5px; }
 
-    /* --- STRICT UNIFIED CODE & EDITOR STYLING --- */
-    .code-container,
-    .highlight-layer,
-    textarea.code-editor {
-      font-family: var(--code-font) !important;
-      font-size: var(--code-font-size) !important;
-      line-height: var(--code-line-height) !important;
-      tab-size: 4 !important;
-      -moz-tab-size: 4 !important;
-      white-space: pre !important;
-      word-wrap: normal !important;
-      overflow-wrap: normal !important;
-      letter-spacing: 0px !important;
-      word-spacing: 0px !important;
-      font-variant-ligatures: none !important;
-      font-feature-settings: "liga" 0 !important;
-      -webkit-font-smoothing: antialiased !important;
-    }
-
     .code-container {
+      font-family: var(--code-font);
+      font-size: var(--code-font-size);
+      line-height: var(--code-line-height);
+      tab-size: 4;
+      white-space: pre;
+      word-wrap: normal;
+      overflow: auto;
       padding: 12px;
       min-height: 480px;
       max-height: 600px;
-      overflow: auto;
       background-color: var(--bg-editor);
       color: var(--syn-default);
       border: 0;
     }
 
-    /* Editor Overlay Engine */
-    .editor-wrapper {
-      position: relative;
-      height: 480px;
-      background: var(--bg-editor);
-    }
-    
-    .highlight-layer, 
     textarea.code-editor {
-      position: absolute;
-      top: 0;
-      left: 0;
       width: 100%;
-      height: 100%;
-      padding: 12px !important;
-      margin: 0 !important;
-      border: 0 !important;
-      outline: none !important;
-      box-sizing: border-box !important;
-    }
-    
-    .highlight-layer {
-      z-index: 1;
-      color: var(--syn-default);
-      overflow: hidden;
-      pointer-events: none;
-    }
-
-    textarea.code-editor {
-      z-index: 2;
-      color: transparent !important;
-      -webkit-text-fill-color: transparent !important;
-      background: transparent !important;
-      caret-color: #ffffff !important;
+      height: 480px;
+      background-color: var(--bg-editor);
+      color: #d4d4d4;
+      font-family: var(--code-font);
+      font-size: var(--code-font-size);
+      line-height: var(--code-line-height);
+      tab-size: 4;
+      padding: 12px;
+      border: none;
+      outline: none;
       resize: none;
+      white-space: pre;
+      word-wrap: normal;
       overflow: auto;
+      caret-color: #ffffff;
     }
 
-    /* Transparent blue selection layer so syntax text underneath remains visible */
     textarea.code-editor::selection {
-      background: rgba(38, 79, 120, 0.55) !important;
-      color: transparent !important;
-      -webkit-text-fill-color: transparent !important;
+      background: #264f78;
+      color: #ffffff;
     }
 
-    /* Syntax Highlighting CSS Tokens */
-    .syn-keyword { color: var(--syn-keyword); font-weight: normal; }
-    .syn-control { color: var(--syn-control); font-weight: normal; }
+    .syn-keyword { color: var(--syn-keyword); }
+    .syn-control { color: var(--syn-control); }
     .syn-string  { color: var(--syn-string); }
     .syn-comment { color: var(--syn-comment); font-style: italic; }
     .syn-number  { color: var(--syn-number); }
     .syn-func    { color: var(--syn-func); }
 
-    /* Diff Highlight Line Rows */
     .diff-row {
       display: block;
       width: 100%;
@@ -207,25 +158,13 @@
       line-height: var(--code-line-height);
       padding: 0 4px;
     }
-    .diff-del { 
-      background-color: var(--diff-del-bg); 
-      border-left: 3px solid #f85149; 
-      text-decoration: line-through; 
-      text-decoration-color: #f85149; 
-    }
-    .diff-add { 
-      background-color: var(--diff-add-bg); 
-      border-left: 3px solid #3fb950; 
-      text-decoration: underline; 
-      text-decoration-color: #3fb950; 
-      text-underline-offset: 2px; 
-    }
+    .diff-del { background-color: var(--diff-del-bg); border-left: 3px solid #f85149; text-decoration: line-through; text-decoration-color: #f85149; }
+    .diff-add { background-color: var(--diff-add-bg); border-left: 3px solid #3fb950; text-decoration: underline; text-decoration-color: #3fb950; text-underline-offset: 2px; }
     .diff-equal { border-left: 3px solid transparent; }
   </style>
 </head>
 <body>
 
-  <!-- PAT CONFIGURATION MODAL -->
   <div id="patModal" class="modal-overlay hidden">
     <div class="modal-card">
       <h2>GitHub Personal Access Token</h2>
@@ -234,8 +173,8 @@
           <label>Enter Personal Access Token (PAT)</label>
           <input type="password" id="ghTokenInput" placeholder="ghp_xxxxxxxxxxxx" required>
           <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
-            Repository set to: <code>sycrip/fixcode</code> (branch: <code>main</code>).<br>
-            Requires token with <code>contents: write</code> permission.
+            Repository: <code>sycrip/fixcode</code> (branch: <code>main</code>).<br>
+            Requires token with <code>Contents: Read and write</code> permission.
           </small>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 16px;">
@@ -246,7 +185,6 @@
     </div>
   </div>
 
-  <!-- MAIN APP WORKSPACE -->
   <div id="appContent">
     <header>
       <div>
@@ -259,7 +197,6 @@
     </header>
 
     <main class="container">
-      <!-- DASHBOARD / MENU VIEW -->
       <div id="menuView">
         <div id="uploadSection" class="card">
           <h3 style="margin-bottom: 12px; color: #ffffff;">Upload C++ File or Source Code</h3>
@@ -293,7 +230,6 @@
         </div>
       </div>
 
-      <!-- EDITOR VIEW -->
       <div id="editorView" class="hidden">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <button class="btn btn-secondary" onclick="showMenu()">&larr; Back to Menu</button>
@@ -309,25 +245,15 @@
           <span id="activeFileTag" class="file-tag-pill">-</span>
         </div>
 
-        <!-- Side-by-Side View -->
         <div class="editor-grid">
-          <!-- Left: Original Code Pane -->
           <div class="editor-pane">
             <div class="pane-header">ORIGINAL CODE</div>
             <div id="leftCodeContainer" class="code-container"></div>
           </div>
 
-          <!-- Right: Editor Pane OR Diff Viewer -->
           <div class="editor-pane">
             <div id="rightPaneHeader" class="pane-header">EDIT CODE</div>
-            
-            <!-- Real-Time Editor Wrapper (Edit Mode for Marker) -->
-            <div id="editorWrapper" class="editor-wrapper hidden">
-              <div id="highlightLayer" class="highlight-layer" aria-hidden="true"></div>
-              <textarea id="rightCodeEditor" class="code-editor" spellcheck="false"></textarea>
-            </div>
-
-            <!-- Diff Viewer (Review Mode for Viewer/Uploader) -->
+            <textarea id="rightCodeEditor" class="code-editor hidden" spellcheck="false"></textarea>
             <div id="rightDiffView" class="code-container hidden"></div>
           </div>
         </div>
@@ -350,14 +276,8 @@
     showMenu();
   });
 
-  /* --- PAT CONFIGURATION ENGINE --- */
-  function getGitHubPAT() {
-    return localStorage.getItem('gh_pat') || '';
-  }
-
-  function saveGitHubPAT(token) {
-    localStorage.setItem('gh_pat', token);
-  }
+  function getGitHubPAT() { return localStorage.getItem('gh_pat') || ''; }
+  function saveGitHubPAT(token) { localStorage.setItem('gh_pat', token); }
 
   function openPatModal() {
     document.getElementById('ghTokenInput').value = getGitHubPAT();
@@ -370,25 +290,22 @@
 
   document.getElementById('patForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    const token = document.getElementById('ghTokenInput').value.trim();
-    saveGitHubPAT(token);
-    alert('Personal Access Token saved successfully!');
+    saveGitHubPAT(document.getElementById('ghTokenInput').value.trim());
+    alert('Personal Access Token saved!');
     closePatModal();
     syncMenuFromRepo();
   });
 
-  /* --- ROBUST GITHUB SHA & COMMIT ENGINE --- */
   async function getGitHubSha(path) {
     const token = getGitHubPAT();
-    if (!token) return { sha: null, error: "PAT Missing" };
+    if (!token) return { sha: null, error: "PAT missing in settings" };
     
-    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`;
+    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}?ref=${GITHUB_CONFIG.branch}`;
     try {
       const res = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Cache-Control': 'no-cache'
+          'Accept': 'application/vnd.github.v3+json'
         }
       });
       if (res.ok) {
@@ -399,7 +316,7 @@
         return { sha: null, error: `HTTP ${res.status}: ${errData.message || res.statusText}` };
       }
     } catch (e) {
-      return { sha: null, error: e.message };
+      return { sha: null, error: "Network error / CORS blockage (Failed to fetch)" };
     }
   }
 
@@ -407,7 +324,7 @@
     const token = getGitHubPAT();
     if (!token) {
       openPatModal();
-      throw new Error("GitHub Personal Access Token is missing. Please enter your PAT.");
+      throw new Error("GitHub Personal Access Token is missing.");
     }
 
     const { sha, error } = await getGitHubSha(path);
@@ -465,7 +382,6 @@
     });
   }
 
-  /* --- CORE UTILITIES & SYNTAX HIGHLIGHTING --- */
   function escapeHtml(str) {
     if (!str) return "";
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -496,7 +412,6 @@
     return result;
   }
 
-  /* --- NAVIGATION & FILE LIST --- */
   async function showMenu() {
     document.getElementById('menuView').classList.remove('hidden');
     document.getElementById('editorView').classList.add('hidden');
@@ -533,12 +448,11 @@
         saveStoredFilesLocally(repoFiles);
       }
     } catch (err) {
-      console.warn("Could not fetch code/list.json from GitHub, using cached files.", err);
+      console.warn("Could not fetch list.json from GitHub, using cached files.", err);
     }
     renderFileList();
   }
 
-  /* --- FILE UPLOAD & MANAGEMENT --- */
   document.getElementById('fileInput').addEventListener('change', function(e) {
     if (e.target.files[0]) {
       const reader = new FileReader();
@@ -582,7 +496,7 @@
       await saveStoredFilesToGitHub(files, `Update file list for: ${name}`);
       this.reset();
       renderFileList();
-      alert('Code successfully committed to GitHub!');
+      alert('Code committed to GitHub!');
     } catch (err) {
       alert(`Error uploading file: ${err.message}`);
     } finally {
@@ -610,7 +524,7 @@
   function renderFileList() {
     const files = getStoredFiles();
     const container = document.getElementById('fileListContainer');
-    if (!files.length) return container.innerHTML = '<p style="color: var(--text-muted);">No files found in code/ directory. Click Sync or upload a new file.</p>';
+    if (!files.length) return container.innerHTML = '<p style="color: var(--text-muted);">No files found in code/ directory.</p>';
 
     container.innerHTML = files.map(f => `
       <div class="file-item">
@@ -629,7 +543,6 @@
     `).join('');
   }
 
-  /* --- EDITOR ENGINE & SAVING --- */
   async function openFileEditor(id, mode = 'edit') {
     const files = getStoredFiles();
     const file = files.find(f => String(f.id) === String(id));
@@ -653,30 +566,28 @@
         if (origRes.ok) origCode = await origRes.text();
         if (modRes.ok) modCode = await modRes.text();
       } catch (err) {
-        console.warn("Could not fetch file content from code/ folder, using cached copy.", err);
+        console.warn("Could not fetch file content from GitHub, using local cache.", err);
       }
     }
 
     document.getElementById('leftCodeContainer').innerHTML = highlightCpp(origCode);
 
-    const editorWrap = document.getElementById('editorWrapper');
+    const editorTextarea = document.getElementById('rightCodeEditor');
     const diffView = document.getElementById('rightDiffView');
     const header = document.getElementById('rightPaneHeader');
 
     if (mode === 'edit') {
       header.innerText = "EDIT CODE (MARKER)";
-      editorWrap.classList.remove('hidden');
+      editorTextarea.classList.remove('hidden');
       diffView.classList.add('hidden');
-      
-      document.getElementById('rightCodeEditor').value = modCode || origCode;
-      syncEditorHighlighting();
+      editorTextarea.value = modCode || origCode;
 
       document.getElementById('saveEditsBtn').classList.remove('hidden');
       document.getElementById('markDoneBtn').classList.remove('hidden');
       document.getElementById('markReadBtn').classList.add('hidden');
     } else {
       header.innerText = "CODE COMPARISON RESULT (VIEWER)";
-      editorWrap.classList.add('hidden');
+      editorTextarea.classList.add('hidden');
       diffView.classList.remove('hidden');
 
       document.getElementById('saveEditsBtn').classList.add('hidden');
@@ -691,22 +602,8 @@
   }
 
   const editorTextarea = document.getElementById('rightCodeEditor');
-  const highlightLayer = document.getElementById('highlightLayer');
 
-  function syncEditorHighlighting() {
-    const code = editorTextarea.value;
-    highlightLayer.innerHTML = highlightCpp(code) + (code.endsWith('\n') ? ' ' : '');
-  }
-
-  editorTextarea.addEventListener('input', syncEditorHighlighting);
-  
-  // Synchronize Scroll across overlay layers
-  editorTextarea.addEventListener('scroll', function() {
-    highlightLayer.scrollTop = this.scrollTop;
-    highlightLayer.scrollLeft = this.scrollLeft;
-  });
-
-  // Auto-brackets & Tab indent controls
+  // Auto-brackets, Tab & Indentation Logic
   editorTextarea.addEventListener('keydown', function(e) {
     const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
     
@@ -715,7 +612,6 @@
       const start = this.selectionStart, end = this.selectionEnd, val = this.value;
       this.value = val.substring(0, start) + e.key + pairs[e.key] + val.substring(end);
       this.selectionStart = this.selectionEnd = start + 1;
-      syncEditorHighlighting();
       return;
     }
 
@@ -724,7 +620,6 @@
       const start = this.selectionStart, end = this.selectionEnd;
       this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
       this.selectionStart = this.selectionEnd = start + 4;
-      syncEditorHighlighting();
       return;
     }
 
@@ -743,7 +638,6 @@
         this.value = val.substring(0, start) + '\n' + indent + val.substring(start);
         this.selectionStart = this.selectionEnd = start + 1 + indent.length;
       }
-      syncEditorHighlighting();
     }
   });
 
@@ -793,7 +687,7 @@
         await saveFileToGitHub(file.modifiedPath, newCode, `Update edited code for ${file.name}`, true);
       }
       await saveStoredFilesToGitHub(files, `Update metadata for ${file.name}`);
-      alert('Edits successfully saved and committed to GitHub!');
+      alert('Edits successfully committed to GitHub!');
     } catch (err) {
       alert(`Save failed: ${err.message}`);
     } finally {
@@ -807,7 +701,7 @@
     if (file) { 
       file.isMarked = true; 
       await saveStoredFilesToGitHub(files, `Mark ${file.name} as done`);
-      alert('File marked as done on GitHub!'); 
+      alert('Marked as done!'); 
       showMenu(); 
     }
   }
@@ -817,7 +711,7 @@
     if (file) { 
       file.isRead = true; 
       await saveStoredFilesToGitHub(files, `Mark ${file.name} as read`);
-      alert('File marked as read on GitHub!'); 
+      alert('Marked as read!'); 
       showMenu(); 
     }
   }
