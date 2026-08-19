@@ -14,7 +14,6 @@
       --text-main: #cccccc;
       --text-muted: #858585;
       --accent-blue: #007acc;
-      --accent-blue-hover: #0062a3;
       
       --code-font: 'Consolas', 'Monaco', 'Courier New', Courier, monospace;
       --code-font-size: 13px;
@@ -69,7 +68,7 @@
     
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-muted); }
-    input[type="text"], input[type="password"], textarea.form-control {
+    input[type="text"], input[type="password"] {
       width: 100%; background: var(--bg-editor); border: 1px solid var(--border-color);
       color: var(--text-main); padding: 8px 12px; border-radius: 4px; font-size: 0.9rem;
     }
@@ -104,6 +103,7 @@
     .editor-pane { background: var(--bg-editor); border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; }
     .pane-header { background: #252526; padding: 8px 12px; border-bottom: 1px solid var(--border-color); font-size: 0.8rem; font-weight: bold; color: var(--text-muted); letter-spacing: 0.5px; }
 
+    /* Syntax Highlighted Code Containers */
     .code-container {
       font-family: var(--code-font);
       font-size: var(--code-font-size);
@@ -120,30 +120,58 @@
       border: 0;
     }
 
-    textarea.code-editor {
-      width: 100%;
-      height: 480px;
+    /* Styled Interactive Editor Wrappers */
+    .code-editor-wrapper {
+      position: relative;
       background-color: var(--bg-editor);
-      color: #d4d4d4;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .code-highlight-layer,
+    .code-input-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 12px;
+      border: 0;
       font-family: var(--code-font);
       font-size: var(--code-font-size);
       line-height: var(--code-line-height);
       tab-size: 4;
-      padding: 12px;
-      border: none;
-      outline: none;
-      resize: none;
       white-space: pre;
       word-wrap: normal;
-      overflow: auto;
+      box-sizing: border-box;
+    }
+
+    .code-highlight-layer {
+      pointer-events: none;
+      color: var(--syn-default);
+      background: transparent;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .code-input-layer {
+      z-index: 2;
+      background: transparent;
+      color: transparent;
       caret-color: #ffffff;
+      resize: none;
+      outline: none;
+      overflow: auto;
     }
 
-    textarea.code-editor::selection {
-      background: #264f78;
-      color: #ffffff;
+    .code-input-layer::selection {
+      background: rgba(38, 79, 120, 0.65);
+      color: transparent;
     }
 
+    /* Syntax Tokens */
     .syn-keyword { color: var(--syn-keyword); }
     .syn-control { color: var(--syn-control); }
     .syn-string  { color: var(--syn-string); }
@@ -215,7 +243,10 @@
             <div class="form-group">
               <label>Select C++ File OR Input Text Directly</label>
               <input type="file" id="fileInput" accept=".cpp,.h,.hpp,.c,.txt" style="margin-bottom: 8px;">
-              <textarea id="rawCodeInput" class="form-control" placeholder="// Paste C++ code here..."></textarea>
+              <div class="code-editor-wrapper" style="height: 220px;">
+                <pre class="code-highlight-layer" aria-hidden="true"><code id="rawCodeHighlight"></code></pre>
+                <textarea id="rawCodeInput" class="code-input-layer" spellcheck="false" placeholder="// Paste C++ code here..."></textarea>
+              </div>
             </div>
             <button type="submit" id="uploadBtn" class="btn btn-success">Upload Code to GitHub</button>
           </form>
@@ -253,7 +284,10 @@
 
           <div class="editor-pane">
             <div id="rightPaneHeader" class="pane-header">EDIT CODE</div>
-            <textarea id="rightCodeEditor" class="code-editor hidden" spellcheck="false"></textarea>
+            <div id="rightEditorWrapper" class="code-editor-wrapper hidden" style="height: 480px;">
+              <pre class="code-highlight-layer" aria-hidden="true"><code id="rightCodeHighlight"></code></pre>
+              <textarea id="rightCodeEditor" class="code-input-layer" spellcheck="false"></textarea>
+            </div>
             <div id="rightDiffView" class="code-container hidden"></div>
           </div>
         </div>
@@ -273,6 +307,10 @@
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('repoNameDisplay').innerText = `${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}`;
     document.getElementById('branchNameDisplay').innerText = GITHUB_CONFIG.branch;
+    
+    setupHighlightedEditor('rawCodeInput', 'rawCodeHighlight');
+    setupHighlightedEditor('rightCodeEditor', 'rightCodeHighlight');
+    
     showMenu();
   });
 
@@ -412,6 +450,67 @@
     return result;
   }
 
+  function setupHighlightedEditor(textareaId, highlightCodeId) {
+    const textarea = document.getElementById(textareaId);
+    const highlightCode = document.getElementById(highlightCodeId);
+
+    function update() {
+      let val = textarea.value;
+      if (val.endsWith('\n')) val += ' ';
+      highlightCode.innerHTML = highlightCpp(val);
+      highlightCode.parentElement.scrollTop = textarea.scrollTop;
+      highlightCode.parentElement.scrollLeft = textarea.scrollLeft;
+    }
+
+    textarea.addEventListener('input', update);
+    textarea.addEventListener('scroll', () => {
+      highlightCode.parentElement.scrollTop = textarea.scrollTop;
+      highlightCode.parentElement.scrollLeft = textarea.scrollLeft;
+    });
+
+    textarea.addEventListener('keydown', function(e) {
+      const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+      
+      if (pairs[e.key]) {
+        e.preventDefault();
+        const start = this.selectionStart, end = this.selectionEnd, val = this.value;
+        this.value = val.substring(0, start) + e.key + pairs[e.key] + val.substring(end);
+        this.selectionStart = this.selectionEnd = start + 1;
+        update();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = this.selectionStart, end = this.selectionEnd;
+        this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+        this.selectionStart = this.selectionEnd = start + 4;
+        update();
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const start = this.selectionStart, val = this.value;
+        const currentLine = val.substring(val.lastIndexOf('\n', start - 1) + 1, start);
+        const baseIndent = (currentLine.match(/^\s*/) || [''])[0];
+
+        if (val[start - 1] === '{' && val[start] === '}') {
+          const innerIndent = baseIndent + '    ';
+          this.value = val.substring(0, start) + '\n' + innerIndent + '\n' + baseIndent + val.substring(start);
+          this.selectionStart = this.selectionEnd = start + 1 + innerIndent.length;
+        } else {
+          const indent = baseIndent + (currentLine.trim().endsWith('{') ? '    ' : '');
+          this.value = val.substring(0, start) + '\n' + indent + val.substring(start);
+          this.selectionStart = this.selectionEnd = start + 1 + indent.length;
+        }
+        update();
+      }
+    });
+
+    textarea.updateHighlight = update;
+  }
+
   async function showMenu() {
     document.getElementById('menuView').classList.remove('hidden');
     document.getElementById('editorView').classList.add('hidden');
@@ -456,7 +555,11 @@
   document.getElementById('fileInput').addEventListener('change', function(e) {
     if (e.target.files[0]) {
       const reader = new FileReader();
-      reader.onload = evt => document.getElementById('rawCodeInput').value = evt.target.result;
+      reader.onload = evt => {
+        const rawInput = document.getElementById('rawCodeInput');
+        rawInput.value = evt.target.result;
+        if (rawInput.updateHighlight) rawInput.updateHighlight();
+      };
       reader.readAsText(e.target.files[0]);
     }
   });
@@ -495,6 +598,7 @@
 
       await saveStoredFilesToGitHub(files, `Update file list for: ${name}`);
       this.reset();
+      document.getElementById('rawCodeInput').updateHighlight();
       renderFileList();
       alert('Code committed to GitHub!');
     } catch (err) {
@@ -572,22 +676,24 @@
 
     document.getElementById('leftCodeContainer').innerHTML = highlightCpp(origCode);
 
+    const rightWrapper = document.getElementById('rightEditorWrapper');
     const editorTextarea = document.getElementById('rightCodeEditor');
     const diffView = document.getElementById('rightDiffView');
     const header = document.getElementById('rightPaneHeader');
 
     if (mode === 'edit') {
       header.innerText = "EDIT CODE (MARKER)";
-      editorTextarea.classList.remove('hidden');
+      rightWrapper.classList.remove('hidden');
       diffView.classList.add('hidden');
       editorTextarea.value = modCode || origCode;
+      if (editorTextarea.updateHighlight) editorTextarea.updateHighlight();
 
       document.getElementById('saveEditsBtn').classList.remove('hidden');
       document.getElementById('markDoneBtn').classList.remove('hidden');
       document.getElementById('markReadBtn').classList.add('hidden');
     } else {
       header.innerText = "CODE COMPARISON RESULT (VIEWER)";
-      editorTextarea.classList.add('hidden');
+      rightWrapper.classList.add('hidden');
       diffView.classList.remove('hidden');
 
       document.getElementById('saveEditsBtn').classList.add('hidden');
@@ -600,46 +706,6 @@
     document.getElementById('menuView').classList.add('hidden');
     document.getElementById('editorView').classList.remove('hidden');
   }
-
-  const editorTextarea = document.getElementById('rightCodeEditor');
-
-  // Auto-brackets, Tab & Indentation Logic
-  editorTextarea.addEventListener('keydown', function(e) {
-    const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
-    
-    if (pairs[e.key]) {
-      e.preventDefault();
-      const start = this.selectionStart, end = this.selectionEnd, val = this.value;
-      this.value = val.substring(0, start) + e.key + pairs[e.key] + val.substring(end);
-      this.selectionStart = this.selectionEnd = start + 1;
-      return;
-    }
-
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const start = this.selectionStart, end = this.selectionEnd;
-      this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
-      this.selectionStart = this.selectionEnd = start + 4;
-      return;
-    }
-
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const start = this.selectionStart, val = this.value;
-      const currentLine = val.substring(val.lastIndexOf('\n', start - 1) + 1, start);
-      const baseIndent = (currentLine.match(/^\s*/) || [''])[0];
-
-      if (val[start - 1] === '{' && val[start] === '}') {
-        const innerIndent = baseIndent + '    ';
-        this.value = val.substring(0, start) + '\n' + innerIndent + '\n' + baseIndent + val.substring(start);
-        this.selectionStart = this.selectionEnd = start + 1 + innerIndent.length;
-      } else {
-        const indent = baseIndent + (currentLine.trim().endsWith('{') ? '    ' : '');
-        this.value = val.substring(0, start) + '\n' + indent + val.substring(start);
-        this.selectionStart = this.selectionEnd = start + 1 + indent.length;
-      }
-    }
-  });
 
   function computeLineLCS(origText, modText) {
     const origLines = origText.split('\n'), modLines = modText.split('\n');
